@@ -10,6 +10,9 @@ for (const name of names) ajv.addSchema(JSON.parse(readFileSync(`contracts/v1/${
 const exports = Object.fromEntries(names.filter(n => n !== 'common').map(name => [
   name.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), `https://schemas.conduz-cobre.invalid/v1/${name}.schema.json`
 ]));
+const preparation = JSON.parse(readFileSync('contracts/preparation/disabled.schema.json', 'utf8'));
+ajv.addSchema(preparation);
+exports.preparationDisabled = preparation.$id;
 mkdirSync('.wrangler/contracts', { recursive: true });
 writeFileSync('.wrangler/contracts/source.mjs', standalone(ajv, exports));
 await build({ entryPoints: ['.wrangler/contracts/source.mjs'], outfile: '.wrangler/contracts/validators.mjs',
