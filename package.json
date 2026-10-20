@@ -1,0 +1,31 @@
+{
+  "name": "conduz-cobre-mercado-livre-b0",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "node scripts/tooling.mjs dev",
+    "setup:local": "node scripts/setup-local.mjs",
+    "typecheck": "npm run contracts:compile && tsc --noEmit",
+    "test": "npm run contracts:compile && node scripts/tooling.mjs test",
+    "build": "node scripts/tooling.mjs build",
+    "audit:dependencies": "npm audit --audit-level=low",
+    "audit:workspace": "node scripts/audit-workspace.mjs",
+    "contracts:generate": "node scripts/generate-contracts.mjs",
+    "contracts:compile": "node scripts/compile-contracts.mjs",
+    "smoke:local": "node scripts/smoke-local.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261019.1",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5",
+    "wrangler": "4.151.3",
+    "@cloudflare/vitest-plugin": "1.4.6",
+    "esbuild": "0.28.2"
+  }
+}

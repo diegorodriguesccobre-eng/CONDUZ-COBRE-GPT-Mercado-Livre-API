@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.conduz-cobre.invalid/v1/common.schema.json",
+  "$defs": {
+    "listing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "pattern": "^MLB_SYNTH_00[123]$"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "status": {
+          "enum": [
+            "active",
+            "paused"
+          ]
+        },
+        "price": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "amount": {
+              "type": "string",
+              "pattern": "^\\d{1,12}\\.\\d{2}$"
+            },
+            "currency": {
+              "const": "BRL"
+            }
+          },
+          "required": [
+            "amount",
+            "currency"
+          ]
+        },
+        "available_quantity": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "item_id",
+        "title",
+        "status",
+        "price",
+        "available_quantity"
+      ]
+    },
+    "account": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "account_ref": {
+          "const": "conduz-cobre-b0"
+        },
+        "seller_id": {
+          "const": "SELLER_CONDUZ_SYNTHETIC"
+        },
+        "nickname": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "account_ref",
+        "seller_id",
+        "nickname"
+      ]
+    }
+  }
+}

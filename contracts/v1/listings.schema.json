@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.conduz-cobre.invalid/v1/listings.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "source": {
+      "const": "synthetic"
+    },
+    "operation": {
+      "const": "conduz_cobre"
+    },
+    "account_ref": {
+      "const": "conduz-cobre-b0"
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "https://schemas.conduz-cobre.invalid/v1/common.schema.json#/$defs/listing"
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "completeness": {
+          "const": "complete"
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor",
+        "completeness"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "source",
+    "operation",
+    "account_ref",
+    "fetched_at",
+    "request_id",
+    "data"
+  ]
+}

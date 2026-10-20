@@ -1,0 +1,850 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CONDUZ COBRE B0 — exclusivamente sintético",
+    "version": "1.0.0",
+    "description": "Contrato interno proposto. Fixtures não representam respostas oficiais. Sem integração externa ou implantação."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8787",
+      "description": "Apenas desenvolvimento local"
+    }
+  ],
+  "security": [
+    {
+      "internalBearer": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "internalBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Chave interna B0; nunca um token Mercado Livre."
+      }
+    }
+  },
+  "paths": {
+    "/internal/health": {
+      "get": {
+        "operationId": "getSyntheticHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resposta exclusivamente sintética",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./health.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/oauth/start": {
+      "post": {
+        "operationId": "startSyntheticOAuth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resposta exclusivamente sintética",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./oauth-start.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/oauth/callback": {
+      "get": {
+        "operationId": "completeSyntheticOAuth",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 4096
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resposta exclusivamente sintética",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./oauth-callback.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/account": {
+      "get": {
+        "operationId": "getAccountSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Resposta exclusivamente sintética",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./account.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/listings": {
+      "get": {
+        "operationId": "listOwnListings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resposta exclusivamente sintética",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./listings.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/listings/{item_id}": {
+      "get": {
+        "operationId": "getOwnListing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^MLB_SYNTH_00[123]$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resposta exclusivamente sintética",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./listing.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Erro saneado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./error.schema.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

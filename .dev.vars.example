@@ -1,0 +1,4 @@
+# B0: generate local synthetic-only keys with npm run setup:local.
+# Never enter Mercado Livre, Cloudflare or other real credentials here.
+INTERNAL_AUTH_KEY=
+TOKEN_ENCRYPTION_KEY=

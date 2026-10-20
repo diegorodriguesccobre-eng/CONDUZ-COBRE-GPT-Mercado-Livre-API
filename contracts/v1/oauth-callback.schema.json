@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.conduz-cobre.invalid/v1/oauth-callback.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "source": {
+      "const": "synthetic"
+    },
+    "operation": {
+      "const": "conduz_cobre"
+    },
+    "account_ref": {
+      "const": "conduz-cobre-b0"
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "connected": {
+          "const": true
+        },
+        "account_ref": {
+          "const": "conduz-cobre-b0"
+        },
+        "seller_id": {
+          "const": "SELLER_CONDUZ_SYNTHETIC"
+        }
+      },
+      "required": [
+        "connected",
+        "account_ref",
+        "seller_id"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "source",
+    "operation",
+    "account_ref",
+    "fetched_at",
+    "request_id",
+    "data"
+  ]
+}
