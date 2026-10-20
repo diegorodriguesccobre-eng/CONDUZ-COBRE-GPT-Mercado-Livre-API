@@ -1,0 +1,30 @@
+{
+  "source": "Direção: aplicação criada e callback confirmado; permissões finais continuam não validadas",
+  "validated": false,
+  "inHouseConfirmed": false,
+  "observed": {
+    "purpose": "Negócios",
+    "users": "Leitura e escrita exibida inicialmente; seleção ativa não confirmada",
+    "communications": "Sem acesso",
+    "publicationSynchronization": "Sem acesso",
+    "advertising": "Sem acesso",
+    "billing": "Sem acesso",
+    "businessMetrics": "Sem acesso",
+    "promotions": "Sem acesso",
+    "additionalGroupsChecked": false,
+    "authorizationCodeSelected": true,
+    "clientCredentialsSelected": true,
+    "refreshTokenSelected": false,
+    "pkceSelected": false
+  },
+  "intended": {
+    "authorizationCode": true,
+    "pkceMethod": "S256",
+    "refresh": "Condicionado às regras oficiais e autorização",
+    "readOwnIdentityAndListingsOnly": true,
+    "commercialWrites": false
+  },
+  "productionOAuthReady": false,
+  "applicationCreatedConfirmed": true,
+  "registeredRedirectConfirmed": "https://conduz-cobre-ml-api.conduz-cobre.workers.dev/oauth/mercadolivre/callback"
+}

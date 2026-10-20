@@ -5,6 +5,7 @@ const mode = process.argv[2];
 const commands = {
   test: ['node_modules/vitest/vitest.mjs', 'run', ...process.argv.slice(3)],
   build: ['node_modules/wrangler/bin/wrangler.js', 'deploy', '--dry-run', '--outdir', 'dist'],
+  'build:production': ['node_modules/wrangler/bin/wrangler.js', 'deploy', '--dry-run', '--config', 'wrangler.production.jsonc', '--outdir', 'dist/production-preparation'],
   dev: ['node_modules/wrangler/bin/wrangler.js', 'dev', '--local', '--ip', '127.0.0.1']
 };
 if (!(mode in commands)) throw new Error('Unsupported local tooling mode');
