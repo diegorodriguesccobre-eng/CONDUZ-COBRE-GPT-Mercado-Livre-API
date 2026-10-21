@@ -1,0 +1,26 @@
+{
+  "phase": "B3_LOCAL_ONLY",
+  "baseCommit": "f59081e223006f3eb0739d01073ed2eba824687e",
+  "liveTransportEnabled": false,
+  "productionOAuthEnabled": false,
+  "officialMercadoLivreContractsValidated": false,
+  "accessPolicyConfigured": false,
+  "identityProviderMfaVerified": false,
+  "sellerIdentityValidatedLive": false,
+  "realCredentialsConfigured": false,
+  "deploymentAuthorized": false,
+  "devCenterSource": "Direção: salvo e reaberto; confirmação na autorização B3",
+  "devCenter": {
+    "application": "CONDUZ COBRE GPT API",
+    "authorizationCode": true,
+    "refreshToken": true,
+    "pkceRequired": true,
+    "clientCredentials": false,
+    "mercadoLivre": true,
+    "vis": false,
+    "publicationAndSynchronization": "read",
+    "users": "mandatory-read-write-not-editable",
+    "communicationsAdvertisingBillingMetricsPromotionsSalesShipping": "no-access",
+    "tokenIsReadOnly": "NOT_ASSUMED"
+  }
+}
