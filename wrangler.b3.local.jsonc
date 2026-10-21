@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "conduz-cobre-b3-local-only",
+  "main": "src/b3/entrypoint.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "durable_objects": { "bindings": [{ "name": "B3_VAULT", "class_name": "B3AccountVault" }] },
+  "migrations": [{ "tag": "b3-local-v1", "new_sqlite_classes": ["B3AccountVault"] }],
+  "observability": { "enabled": false }
+}
