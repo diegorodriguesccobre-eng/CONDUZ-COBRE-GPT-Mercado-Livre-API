@@ -131,6 +131,23 @@ describe('B3 composição OAuth e rotas individuais', () => {
     const response = await h.router(flow.callback()); expect(response.status).toBe(400);
     expect(await response.text()).not.toContain(PRIVATE); expect(h.exchanges()).toBe(0);
   });
+  it.each([429, 500, 503])('consulta HTTP %s é temporária, não pede reauth e permite recuperação', async status => {
+    const h = harness(); const flow = await h.start(); await h.router(flow.callback());
+    const row = h.store.getTokens();
+    h.transport.send.mockImplementationOnce(async () => new Response(PRIVATE, { status }));
+    const response = await h.request('/internal/account');
+    expect(response.status).toBe(503); const body = await response.json();
+    expect(body).toMatchObject({ error: { code: 'QUERY_UNAVAILABLE', retryable: true } });
+    expect(JSON.stringify(body)).not.toContain(PRIVATE); expect(h.store.getTokens()).toEqual(row);
+    expect((await h.request('/internal/account')).status).toBe(200); expect(h.exchanges()).toBe(1);
+  });
+  it.each([401, 403])('consulta HTTP %s distingue autenticação de permissão sem repetir tokens', async status => {
+    const h = harness(); const flow = await h.start(); await h.router(flow.callback());
+    h.transport.send.mockImplementationOnce(async () => new Response(PRIVATE, { status }));
+    const response = await h.request('/internal/account'); expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ error: { code: status === 401 ? 'REAUTH_REQUIRED' : 'QUERY_DENIED', retryable: false } });
+    expect(h.store.tokens?.status).toBe('ready'); expect(h.exchanges()).toBe(1);
+  });
   it('B2 e entrada B3 permanecem inertes para qualquer rota', async () => {
     const h = harness();
     for (const path of ['/internal/health', '/oauth/mercadolivre/callback?code=' + PRIVATE, '/oauth/start']) {

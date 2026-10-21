@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { AppError } from '../../src/errors';
 import { CryptoBox, base64url } from '../../src/crypto';
 import { TokenKeyring } from '../../src/b3/keyring';
 import { TokenCoordinator, type CandidateTokens, type TokenProvider } from '../../src/b3/token-service';
@@ -74,6 +75,14 @@ describe('B3 cofre e refresh coordenado', () => {
     await expect(h.service.withAccess(async t => t)).rejects.toMatchObject({ code: 'REAUTH_REQUIRED' });
     expect(h.provider.refresh).toHaveBeenCalledTimes(1);
   });
+  it('refresh que devolve o mesmo token de uso único mantém quarentena', async () => {
+    const h = harness(); await h.service.connect(grant); h.clock.now += 31000;
+    h.provider.refresh.mockResolvedValue(candidate());
+    await expect(h.service.withAccess(async t => t)).rejects.toMatchObject({ code: 'REAUTH_REQUIRED' });
+    expect(h.store.tokens?.status).toBe('refreshing');
+    await expect(h.service.withAccess(async t => t)).rejects.toMatchObject({ code: 'REAUTH_REQUIRED' });
+    expect(h.provider.refresh).toHaveBeenCalledTimes(1);
+  });
   it('vendedor divergente no refresh deixa cofre bloqueado', async () => {
     const h = harness(); await h.service.connect(grant); h.clock.now += 31000;
     h.provider.refresh.mockResolvedValue({ ...candidate(2), sellerId: '99' });
@@ -101,7 +110,32 @@ describe('B3 cofre e refresh coordenado', () => {
   });
   it('rota de erro não devolve token capturado em exceção da consulta', async () => {
     const h = harness(); await h.service.connect(grant);
-    await expect(h.service.withAccess(async t => { throw new Error(t); })).rejects.toThrow('Conexão indisponível; revisão necessária.');
+    await expect(h.service.withAccess(async t => { throw new Error(t); })).rejects.toMatchObject({
+      code: 'QUERY_UNAVAILABLE', retryable: true, message: 'Consulta temporariamente indisponível.'
+    });
+    expect(h.store.tokens?.status).toBe('ready');
+  });
+  it.each([
+    ['UPSTREAM_TIMEOUT', 504, true, 'QUERY_TIMEOUT', 504, true],
+    ['UPSTREAM_UNAVAILABLE', 503, true, 'QUERY_UNAVAILABLE', 503, true],
+    ['UPSTREAM_CONTRACT', 502, false, 'QUERY_CONTRACT', 502, false],
+    ['QUERY_DENIED', 403, false, 'QUERY_DENIED', 403, false],
+    ['QUERY_AUTH_REQUIRED', 401, false, 'REAUTH_REQUIRED', 401, false],
+    ['SELLER_MISMATCH', 403, false, 'SELLER_MISMATCH', 403, false]
+  ] as const)('consulta %s é sanitizada sem modificar ou renovar tokens', async (code, status, retryable, expectedCode, expectedStatus, expectedRetryable) => {
+    const h = harness(); await h.service.connect(grant); const row = h.store.getTokens();
+    await expect(h.service.withAccess(async () => { throw new AppError(code, status, 'SYNTHETIC_PRIVATE', retryable); }))
+      .rejects.toMatchObject({ code: expectedCode, status: expectedStatus, retryable: expectedRetryable });
+    expect(h.store.getTokens()).toEqual(row); expect(h.provider.refresh).not.toHaveBeenCalled();
+    expect(await h.service.withAccess(async () => 'recovered')).toBe('recovered');
+  });
+  it('timeout ambíguo no refresh mantém marcador e bloqueia consultas seguintes', async () => {
+    const h = harness(); await h.service.connect(grant); h.clock.now += 31000;
+    h.provider.refresh.mockRejectedValue(new AppError('UPSTREAM_TIMEOUT', 504, 'SYNTHETIC_PRIVATE', true));
+    await expect(h.service.withAccess(async t => t)).rejects.toMatchObject({ code: 'REAUTH_REQUIRED', retryable: false });
+    expect(h.store.tokens?.status).toBe('refreshing');
+    await expect(h.service.withAccess(async t => t)).rejects.toMatchObject({ code: 'REAUTH_REQUIRED' });
+    expect(h.provider.refresh).toHaveBeenCalledTimes(1);
   });
   it('rejeita registro cifrado com vendedor ou geração inválida', async () => {
     const h = harness();

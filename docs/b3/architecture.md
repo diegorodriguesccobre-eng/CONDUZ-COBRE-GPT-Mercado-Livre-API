@@ -28,7 +28,9 @@ Callback devolve 303 para `/oauth/result` sem código/state; erro genérico sem 
 
 `CandidateAdapter` só recebe transporte explicitamente injetado. Não tem fetch padrão. O DO B3 usa provedor que sempre bloqueia e cliente B1 com transporte real desativado. Somente GET `/users/me`, `/users/{vendedor-configurado}/items/search` (active, limit 1–20, offset limitado) e `/items/MLB…`; propriedade do produto é validada antes de retornar dados. Nenhum sellerId vem do solicitante. Parsers B1 candidatos removem email e campos não previstos.
 
-POST é construído apenas por métodos de Authorization Code/refresh no endpoint `/oauth/token`, com formulário e parâmetros fixados; não existe rota de proxy nem API pública para enviar Request arbitrário. PUT/PATCH/DELETE e POST comerciais são negados. Redirect é manual, timeout da requisição é 10 segundos, corpo é limitado a 128 KiB mesmo sem Content-Length e não há repetição automática. Futuro transporte real deve garantir cancelamento também de leitura lenta do corpo e testar os limites contra upstream; nesta fase o transporte injetado só simula respostas locais.
+Atualização local B3.1: ver `docs/b31/review.md` para correção de token_type, prazo total de resposta, classificação de erros de GET e workflow SQLite adicional. A autorização desta revisão não permite commit ou push.
+
+POST é construído apenas por métodos de Authorization Code/refresh no endpoint `/oauth/token`, com formulário e parâmetros fixados; não existe rota de proxy nem API pública para enviar Request arbitrário. PUT/PATCH/DELETE e POST comerciais são negados. Redirect é manual; há um único prazo máximo de 10 segundos para cabeçalhos e corpo inteiro, imposto também contra portas que ignoram abort, com descarte de respostas tardias e cancelamento sem espera ilimitada. Corpo é limitado a 128 KiB mesmo sem Content-Length e não há repetição automática. O comportamento de transporte real ainda precisa de validação; nesta fase o transporte injetado só simula respostas locais.
 
 ## Travas
 

@@ -59,8 +59,9 @@ export function localB3Router(config: PreparationConfig, access: AccessIdentityV
     } catch (error) {
       // Never forward arbitrary provider/storage messages, even AppError messages from an injected port.
       const known = error instanceof AppError && ['ACCESS_DENIED', 'ORIGIN_DENIED', 'BAD_REQUEST', 'METHOD_DENIED',
-        'NOT_FOUND', 'RATE_LIMITED', 'REAUTH_REQUIRED', 'SELLER_MISMATCH'].includes(error.code);
-      return Response.json({ error: { code: known ? error.code : 'B3_UNAVAILABLE', message: 'Operação local não concluída.' } },
+        'NOT_FOUND', 'RATE_LIMITED', 'REAUTH_REQUIRED', 'SELLER_MISMATCH',
+        'QUERY_TIMEOUT', 'QUERY_UNAVAILABLE', 'QUERY_CONTRACT', 'QUERY_DENIED'].includes(error.code);
+      return Response.json({ error: { code: known ? error.code : 'B3_UNAVAILABLE', message: 'Operação local não concluída.', retryable: known ? error.retryable : false } },
         { status: known ? error.status : 503, headers: HEADERS });
     }
   };

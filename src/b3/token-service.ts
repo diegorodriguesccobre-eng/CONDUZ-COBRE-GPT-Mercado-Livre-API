@@ -48,6 +48,7 @@ export class TokenCoordinator {
   }
   withAccess<T>(operation: (access: string) => Promise<T>): Promise<T> {
     return this.exclusive(async () => {
+      let accessToken: string;
       try {
         if (this.quarantined) throw this.unavailable();
         const row = this.store.getTokens();
@@ -60,12 +61,19 @@ export class TokenCoordinator {
           // Commit before the first await to the provider; recovery must not retry the old refresh token.
           this.store.putTokens({ ciphertext: row.ciphertext, status: 'refreshing' });
           try {
-            record = await this.validate(await this.provider.refresh(record.refreshToken), record.generation + 1);
+            const renewed = await this.provider.refresh(record.refreshToken);
+            // A consumed, single-use refresh token must never become the next ready token.
+            if (renewed.refreshToken === record.refreshToken) throw this.unavailable();
+            record = await this.validate(renewed, record.generation + 1);
             await this.save(record);
           } catch { this.quarantined = true; throw this.unavailable(); }
         }
-        return await operation(record.accessToken);
+        accessToken = record.accessToken;
       } catch (error) { return this.safe(error); }
+      // Read failures do not invalidate a ready vault or reuse a refresh token.
+      // Token acquisition/refresh failures above retain their fail-closed semantics.
+      try { return await operation(accessToken); }
+      catch (error) { return this.queryFailure(error); }
     });
   }
   revokeLocally(): Promise<void> {
@@ -90,6 +98,19 @@ export class TokenCoordinator {
     const ciphertext = await this.keys.seal(record);
     try { this.store.putTokens({ ciphertext, status: 'ready' }); }
     catch { this.quarantined = true; throw this.unavailable(); }
+  }
+  private queryFailure(error: unknown): never {
+    if (error instanceof AppError) {
+      if (error.code === 'UPSTREAM_TIMEOUT') throw new AppError('QUERY_TIMEOUT', 504, 'Prazo da consulta excedido.', true);
+      if (error.code === 'QUERY_AUTH_REQUIRED') throw new AppError('REAUTH_REQUIRED', 401, 'Autorização da consulta inválida; revisão necessária.');
+      if (error.code === 'QUERY_DENIED') throw new AppError('QUERY_DENIED', 403, 'Consulta não autorizada.');
+      if (error.code === 'SELLER_MISMATCH') throw new AppError('SELLER_MISMATCH', 403, 'Vendedor não autorizado.');
+      if (error.code === 'UPSTREAM_CONTRACT' || (error.code === 'UPSTREAM_UNAVAILABLE' && !error.retryable)) {
+        throw new AppError('QUERY_CONTRACT', 502, 'Resposta da consulta incompatível.');
+      }
+    }
+    // Unknown upstream errors are sanitized without converting a read outage into reauthorization.
+    throw new AppError('QUERY_UNAVAILABLE', 503, 'Consulta temporariamente indisponível.', true);
   }
   private safe(error: unknown): never {
     if (error instanceof AppError && ['SELLER_MISMATCH', 'REAUTH_REQUIRED'].includes(error.code)) throw error;
