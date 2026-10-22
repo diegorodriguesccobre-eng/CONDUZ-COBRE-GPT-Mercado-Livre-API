@@ -1,0 +1,49 @@
+name: B4 MCP local synthetic checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-local:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        shell: bash
+        working-directory: prototype/mcp-local
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install root dependencies
+        working-directory: .
+        timeout-minutes: 3
+        run: npm ci --ignore-scripts
+      - name: Install MCP dependencies
+        timeout-minutes: 3
+        run: npm ci --ignore-scripts
+      - name: Typecheck MCP
+        timeout-minutes: 2
+        run: npm run typecheck
+      - name: Test MCP
+        timeout-minutes: 3
+        run: npm test
+      - name: Demonstrate synthetic MCP
+        timeout-minutes: 2
+        run: npm run demo
+      - name: Audit MCP dependencies
+        timeout-minutes: 2
+        run: npm audit --audit-level=low
