@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [mcp, persistence, recovery]
+        suite: [mcp, persistence, recovery, vault]
     env:
       CI: 'true'
       WRANGLER_SEND_METRICS: 'false'
@@ -46,8 +46,8 @@ jobs:
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
           import { readdirSync } from 'node:fs';
-          assert.deepEqual(readdirSync('tests').filter(name => name.endsWith('.test.mjs')).sort(),
-            ['hardening.test.mjs', 'interoperability.test.mjs', 'persistence.test.mjs', 'recovery.test.mjs']);
+          assert.deepEqual(readdirSync('tests', { recursive: true }).filter(name => name.endsWith('.test.mjs')).sort(),
+            ['hardening.test.mjs', 'interoperability.test.mjs', 'persistence.test.mjs', 'recovery.test.mjs', 'vault-isolation.test.mjs']);
           NODE
       - name: Typecheck MCP
         timeout-minutes: 2
@@ -60,6 +60,10 @@ jobs:
         if: matrix.suite == 'recovery'
         timeout-minutes: 2
         run: npm exec -- tsc --noEmit -p tsconfig.recovery.json
+      - name: Typecheck isolated vault fixture
+        if: matrix.suite == 'vault'
+        timeout-minutes: 2
+        run: npm exec -- tsc --noEmit -p tsconfig.vault.json
       - name: Build local MCP
         timeout-minutes: 1
         run: npm run build:local
@@ -75,6 +79,10 @@ jobs:
         if: matrix.suite == 'recovery'
         timeout-minutes: 5
         run: node --test tests/recovery.test.mjs
+      - name: Test synthetic account vault isolation
+        if: matrix.suite == 'vault'
+        timeout-minutes: 3
+        run: node --test tests/vault-isolation.test.mjs
       - name: Demonstrate synthetic MCP
         if: matrix.suite == 'mcp'
         timeout-minutes: 2
