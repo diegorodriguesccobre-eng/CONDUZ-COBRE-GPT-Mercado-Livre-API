@@ -9,8 +9,13 @@ permissions:
 
 jobs:
   mcp-local:
+    name: Synthetic checks (${{ matrix.suite }})
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [mcp, persistence, recovery]
     env:
       CI: 'true'
       WRANGLER_SEND_METRICS: 'false'
@@ -35,15 +40,46 @@ jobs:
       - name: Install MCP dependencies
         timeout-minutes: 3
         run: npm ci --ignore-scripts
+      - name: Verify complete test suite inventory
+        timeout-minutes: 1
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readdirSync } from 'node:fs';
+          assert.deepEqual(readdirSync('tests').filter(name => name.endsWith('.test.mjs')).sort(),
+            ['hardening.test.mjs', 'interoperability.test.mjs', 'persistence.test.mjs', 'recovery.test.mjs']);
+          NODE
       - name: Typecheck MCP
         timeout-minutes: 2
         run: npm run typecheck
-      - name: Test MCP
+      - name: Typecheck persistent fixture
+        if: matrix.suite == 'persistence'
+        timeout-minutes: 2
+        run: npm exec -- tsc --noEmit -p tsconfig.persistence.json
+      - name: Typecheck recovery fixture
+        if: matrix.suite == 'recovery'
+        timeout-minutes: 2
+        run: npm exec -- tsc --noEmit -p tsconfig.recovery.json
+      - name: Build local MCP
+        timeout-minutes: 1
+        run: npm run build:local
+      - name: Test MCP interoperability and harness
+        if: matrix.suite == 'mcp'
         timeout-minutes: 3
-        run: npm test
+        run: node --test tests/interoperability.test.mjs tests/hardening.test.mjs
+      - name: Test synthetic persistent grants
+        if: matrix.suite == 'persistence'
+        timeout-minutes: 3
+        run: node --test tests/persistence.test.mjs
+      - name: Test synthetic recovery and CAS faults
+        if: matrix.suite == 'recovery'
+        timeout-minutes: 5
+        run: node --test tests/recovery.test.mjs
       - name: Demonstrate synthetic MCP
+        if: matrix.suite == 'mcp'
         timeout-minutes: 2
         run: npm run demo
       - name: Audit MCP dependencies
+        if: matrix.suite == 'mcp'
         timeout-minutes: 2
         run: npm audit --audit-level=low
