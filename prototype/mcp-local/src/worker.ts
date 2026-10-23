@@ -1,12 +1,13 @@
 import type { JSONWebKeySet } from 'jose';
 import { createSyntheticAccess } from './synthetic';
 import { createSyntheticMcp } from './server';
+import { DurableAccountAccess, type PersistentEnv } from './persistent-policy';
 
 const MAX_HTTP_BYTES = 16384;
 const HEADERS = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'" };
 const denied = (status: number) => Response.json({ error: 'SYNTHETIC_REQUEST_DENIED' }, { status, headers: HEADERS });
-interface SyntheticEnv { SYNTHETIC_ONLY?: string; SYNTHETIC_JWKS?: JSONWebKeySet }
+interface SyntheticEnv extends PersistentEnv { SYNTHETIC_ONLY?: string; SYNTHETIC_JWKS?: JSONWebKeySet }
 
 async function boundedBody(body: ReadableStream<Uint8Array> | null): Promise<Uint8Array<ArrayBuffer>> {
   if (!body) return new Uint8Array();
@@ -43,7 +44,12 @@ export default {
     if (url.pathname !== '/mcp' || url.search) return denied(404);
     if (!['POST', 'GET', 'DELETE'].includes(request.method)) return denied(405);
     try {
-      const { verifier, access } = await createSyntheticAccess(env.SYNTHETIC_JWKS);
+      const synthetic = await createSyntheticAccess(env.SYNTHETIC_JWKS);
+      const { verifier } = synthetic;
+      // Persistent mode never falls back if its namespace is missing or unavailable.
+      if (env.SYNTHETIC_POLICY !== undefined && env.SYNTHETIC_POLICY !== 'persistent') return denied(503);
+      const access = env.SYNTHETIC_POLICY === 'persistent'
+        ? new DurableAccountAccess(verifier, env) : synthetic.access;
       try { await verifier.authenticate(request); } catch { return denied(401); }
       let incoming = request;
       if (request.method === 'POST') {

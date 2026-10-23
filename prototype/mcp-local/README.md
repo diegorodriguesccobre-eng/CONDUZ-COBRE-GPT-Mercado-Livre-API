@@ -1,6 +1,7 @@
 # B4 — Fase 2B.1: MCP local sintético
 
-Protótipo isolado, baseado em `97e76a655c389c61bf1001f8d0c4333d2855aee1`.
+Protótipo isolado, originalmente baseado em `97e76a655c389c61bf1001f8d0c4333d2855aee1`.
+A evolução local 2B.2-A parte de `dd2933d1c1d39e76e8d9011048666933be6b2eb6`; consulte [a arquitetura persistente](docs/persistence.md).
 Não altera os arquivos herdados, não integra o Worker existente e não contém configuração de deploy.
 Executa apenas no loopback `http://127.0.0.1:<porta>/mcp`, com Miniflare/workerd local, identidades RS256 efêmeras e fixtures.
 
@@ -26,7 +27,7 @@ O sandbox precisa permitir execução de processos e sockets locais. Nenhum coma
 - `synthetic-operator-a` tem `read` em `account-a`; `synthetic-operator-b` tem `read` em `account-b`.
 - JWTs e chave privada são gerados no harness, ficam em memória e não são gravados nos relatórios.
 - O JWT é validado pelo verificador B4/B3.1 reaproveitado. O header usado é uma simulação local de Access; não é uma integração Access ou OAuth real.
-- Política somente em memória, sem DB/DO/KV, provisionamento ou rota administrativa. Na superfície HTTP, os grants sintéticos são reconstruídos por requisição; a revogação é testada na unidade de autorização, não é um serviço de revogação operacional.
+- O modo original `startLocal()` usa política em memória e reconstrói os grants por requisição. O novo `startPersistent()` é um harness separado de testes com SQLite/DO local; não cria rotas administrativas, bindings de produção ou cofres operacionais.
 - Upload e resposta HTTP: 16 KiB e prazo de leitura de 2 s. Resultado de ferramenta: 4 KiB serializados antes da duplicação em `content` e `structuredContent`.
 - Os dois perfis demonstrados são MCP `2026-07-28` com negociação fixada e compatibilidade 2025 via handshake legacy do SDK.
 - Textos de anúncios são retornados como dados, com `untrusted_data: true`; não há avaliador de instruções ou execução de texto.
@@ -37,7 +38,7 @@ Após os comandos, `work/` contém `interoperability.json`, `test-wire.json`, `b
 O relatório de entrega está em `docs/phase-2b1-report.md`.
 O cliente usa o pacote oficial `@modelcontextprotocol/client`, em Node, separado do processo workerd que executa o servidor. A demonstração usa HTTP real, não `InMemoryTransport` nem chamada direta às funções do servidor.
 
-Isto não demonstra compatibilidade com ChatGPT ou todo cliente de terceiros. Persistência operacional e Fase 2B.2 dependem de nova aprovação.
+Isto não demonstra compatibilidade com ChatGPT ou todo cliente de terceiros. Persistência operacional e a Fase 2B.2-B dependem de nova aprovação.
 
 ## Fase 2B.1-Q: rejeições e encerramento
 
@@ -49,4 +50,15 @@ O harness registra clientes, transportes, respostas e requests nativos, aborta o
 
 `work/lifecycle-evidence.json` registra os cenários com encerramento natural, portas recusando conexão, processos workerd encerrados e ausência de recursos/timers adicionais, incluindo timers sem ref. Os subprocessos não usam `process.exit()` nem force-exit; o teste pai só mata seu grupo em caso de timeout, que faz o teste falhar. A inspeção de processos usa `/proc` e os diagnósticos de handles/timers são específicos de Linux/Node 24, compatíveis com o runner Ubuntu 24.04 previsto.
 
-Factories e hooks opcionais de `startLocal` existem apenas como pontos locais de injeção de falhas; não são parâmetros MCP, variáveis de ambiente ou bindings do Worker. Nenhum arquivo `src/` do protótipo ou do Worker existente foi alterado. Os scripts não implementam concessões persistentes, OAuth real ou operação de produção. A validação local não substitui nova execução GitHub após eventual publicação autorizada.
+Factories e hooks opcionais de `startLocal` existem apenas como pontos locais de composição e injeção de falhas; não são parâmetros MCP, variáveis de ambiente ou bindings do Worker. Na entrega 2B.1-Q nenhum arquivo `src/` foi alterado. A evolução 2B.2-A modifica somente o entrypoint do protótipo, preservando o Worker existente. OAuth real e operação de produção continuam fora do escopo. A validação local não substitui nova execução GitHub após eventual publicação autorizada.
+
+## Fase 2B.2-A: persistência sintética
+
+`npm test` descobre os 71 testes anteriores e 42 novos casos de persistência/segurança (113 no total). Os testes novos compilam seu próprio entrypoint local e usam diretórios temporários de SQLite, removidos no encerramento. Para conferir também os tipos do fixture administrativo/falhas:
+
+```sh
+npm exec -- tsc --noEmit -p tsconfig.persistence.json
+node --test tests/persistence.test.mjs
+```
+
+O registro independente de revisões/revogações é obrigatório para autorizar uma projeção de concessão restaurada. Restaurar apenas a projeção não desfaz uma revogação. Restaurar simultaneamente uma versão antiga da autoridade e das projeções está fora da garantia: exige uma âncora externa confiável ou recuperação com bloqueio e reconciliação administrativa. Não restaure o diretório completo como procedimento operacional. Os detalhes e limites estão em [docs/persistence.md](docs/persistence.md).

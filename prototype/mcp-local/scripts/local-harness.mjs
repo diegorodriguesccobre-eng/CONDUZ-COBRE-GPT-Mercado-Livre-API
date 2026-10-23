@@ -45,19 +45,21 @@ export async function startLocal({ enabled = true } = {}, {
   createRuntime = options => new Miniflare(options),
   createClient = (info, options) => new Client(info, options),
   fetch: fetchImpl = globalThis.fetch,
-  afterReady = async () => {}
+  afterReady = async () => {},
+  createKeyPair = () => generateKeyPair('RS256'),
+  configureRuntime = options => options
 } = {}) {
-  const pair = await generateKeyPair('RS256');
+  const pair = await createKeyPair();
   const jwks = { keys: [{ ...await exportJWK(pair.publicKey), alg: 'RS256', use: 'sig', kid: 'synthetic-ephemeral' }] };
   let outboundAttempts = 0; let closed = false;
   const wire = []; const clients = new Set(); const requests = new Set();
   const fetches = new Set(); const responses = new Set(); const shutdown = new AbortController();
-  const options = convertV4MiniflareOptions({
+  const options = convertV4MiniflareOptions(configureRuntime({
     modules: true, scriptPath: 'work/worker.mjs', host: '127.0.0.1', port: 0,
     inspectorHost: '127.0.0.1', inspectorPort: 0, compatibilityDate: '2026-10-01', cf: false,
     bindings: { SYNTHETIC_ONLY: enabled ? 'B4_MCP_LOCAL_ONLY' : 'DISABLED', SYNTHETIC_JWKS: jwks },
     outboundService: () => { outboundAttempts++; return new Response('SYNTHETIC_EGRESS_DENIED', { status: 503 }); }
-  });
+  }));
   const mf = createRuntime({ ...options, telemetry: { enabled: false }, log: new Log(LogLevel.NONE) });
   const dispose = once(() => mf.dispose());
   const ensureOpen = () => { if (closed) throw new Error('LOCAL_HARNESS_CLOSED'); };
