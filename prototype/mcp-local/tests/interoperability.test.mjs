@@ -1,8 +1,8 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { request as httpRequest } from 'node:http';
 import { writeFile } from 'node:fs/promises';
-import { startLocal, dataOf } from '../scripts/local-harness.mjs';
+import { startLocal, dataOf, usingLocal } from '../scripts/local-harness.mjs';
+import { expectReadDenied, expectInvalidArguments, expectUnknownTool, expectRpcError } from '../scripts/rejections.mjs';
 import { createSyntheticAccess, INJECTION_TEXT } from '../work/unit/synthetic.mjs';
 import { result } from '../work/unit/server.mjs';
 
@@ -10,15 +10,12 @@ let local;
 before(async () => { local = await startLocal(); });
 after(async () => {
   if (local) {
-    assert.equal(local.outboundAttempts(), 0);
-    await writeFile('work/test-wire.json', JSON.stringify({ outbound_attempts: local.outboundAttempts(), exchanges: local.wire }, null, 2) + '\n');
-    await local.close();
+    await usingLocal(local, async () => {
+      assert.equal(local.outboundAttempts(), 0);
+      await writeFile('work/test-wire.json', JSON.stringify({ outbound_attempts: local.outboundAttempts(), exchanges: local.wire }, null, 2) + '\n');
+    });
   }
 });
-async function rejectedTool(client, name, args) {
-  try { const response = await client.callTool({ name, arguments: args }); assert.equal(response.isError, true); return response; }
-  catch (error) { if (error.code === 'ERR_ASSERTION') throw error; return { protocol_rejection: true }; }
-}
 
 for (const [profile, mode] of [['2026-07-28', { pin: '2026-07-28' }], ['2025 compatibility', 'legacy']]) {
   describe(profile, () => {
@@ -55,12 +52,12 @@ for (const [profile, mode] of [['2026-07-28', { pin: '2026-07-28' }], ['2025 com
         const client = await local.connect('synthetic-operator-' + suffix, mode);
         try {
           for (const tool of ['account', 'listings', 'listing']) {
-            const denied = await rejectedTool(client, tool, { account_ref: 'account-' + other,
+            const denied = await expectReadDenied(client, tool, { account_ref: 'account-' + other,
               ...(tool === 'listing' ? { item_id: `MLB_SYNTH_${other.toUpperCase()}_001` } : {}) });
             assert.equal(denied.isError, true);
             assert.ok(!JSON.stringify(denied).includes('PRIVATE-TO-B'));
           }
-          assert.equal((await rejectedTool(client, 'listing', { account_ref: 'account-' + suffix,
+          assert.equal((await expectReadDenied(client, 'listing', { account_ref: 'account-' + suffix,
             item_id: `MLB_SYNTH_${other.toUpperCase()}_001` })).isError, true);
         } finally { await client.close(); }
       });
@@ -70,12 +67,13 @@ for (const [profile, mode] of [['2026-07-28', { pin: '2026-07-28' }], ['2025 com
       try {
         const item = dataOf(await client.callTool({ name: 'listing', arguments: { account_ref: 'account-a', item_id: 'MLB_SYNTH_A_001' } }));
         assert.equal(item.data.title, INJECTION_TEXT); assert.equal(item.untrusted_data, true);
-        assert.equal((await rejectedTool(client, 'account', { account_ref: 'account-b' })).isError, true);
+        assert.equal((await expectReadDenied(client, 'account', { account_ref: 'account-b' })).isError, true);
       } finally { await client.close(); }
     });
     it('concurrent calls do not mix identities or account data', async () => {
-      const clients = await Promise.all(['a', 'b'].map(s => local.connect('synthetic-operator-' + s, mode)));
+      const clients = [];
       try {
+        for (const suffix of ['a', 'b']) clients.push(await local.connect('synthetic-operator-' + suffix, mode));
         await Promise.all(Array.from({ length: 12 }, async (_, i) => {
           const suffix = i % 2 === 0 ? 'a' : 'b';
           const value = dataOf(await clients[i % 2].callTool({ name: 'account', arguments: { account_ref: 'account-' + suffix } }));
@@ -86,8 +84,8 @@ for (const [profile, mode] of [['2026-07-28', { pin: '2026-07-28' }], ['2025 com
     it('denies unknown/commercial write tools and unknown account', async () => {
       const client = await local.connect('synthetic-operator-a', mode);
       try {
-        for (const name of ['delete', 'update', 'connect', 'proxy', '__proto__']) await rejectedTool(client, name, {});
-        await rejectedTool(client, 'account', { account_ref: 'account-z' });
+        for (const name of ['delete', 'update', 'connect', 'proxy', '__proto__']) await expectUnknownTool(client, name);
+        await expectReadDenied(client, 'account', { account_ref: 'account-z' });
       } finally { await client.close(); }
     });
     it('rejects missing, extra, mistyped, overlong and out-of-range arguments', async () => {
@@ -100,7 +98,7 @@ for (const [profile, mode] of [['2026-07-28', { pin: '2026-07-28' }], ['2025 com
           ['listings', { account_ref: 'account-a', limit: '1' }], ['listings', { account_ref: 'account-a', offset: -1 }],
           ['listing', { account_ref: 'account-a', item_id: 'https://evil.invalid/' }],
           ['listing', { account_ref: 'account-a', item_id: 'MLB_SYNTH_A_001', url: 'https://evil.invalid/' }]
-        ]) await rejectedTool(client, name, args);
+        ]) await expectInvalidArguments(client, name, args);
       } finally { await client.close(); }
     });
   });
@@ -127,14 +125,7 @@ describe('HTTP authentication and bounds', () => {
   });
   it('rejects external Origin and Host', async () => {
     assert.equal((await local.raw({ headers: { Origin: 'https://evil.invalid' }, body: {} })).status, 403);
-    const token = await local.assertion();
-    const hostStatus = await new Promise((resolve, reject) => {
-      const request = httpRequest(local.url, { method: 'POST', headers: { Host: 'evil.invalid',
-        'Content-Type': 'application/json', 'Content-Length': '2', 'Cf-Access-Jwt-Assertion': token } }, response => {
-        response.resume(); response.on('end', () => resolve(response.statusCode));
-      });
-      request.on('error', reject); request.end('{}');
-    });
+    const hostStatus = await local.rawHttp({ headers: { Host: 'evil.invalid' } });
     assert.equal(hostStatus, 403);
   });
   it('does not expose OAuth, proxy, alternative routes or account selectors in query', async () => {
@@ -149,26 +140,16 @@ describe('HTTP authentication and bounds', () => {
   });
   it('malformed JSON and unknown JSON-RPC methods produce protocol errors', async () => {
     const badJson = await local.raw({ body: '{' });
-    assert.ok(badJson.status >= 400);
+    await expectRpcError(badJson, { status: 400, id: null, code: -32700, message: 'Parse error: Invalid JSON' });
     const unknown = await local.raw({ body: { jsonrpc: '2.0', id: 9, method: 'commercial/write' } });
-    const text = await unknown.text(); assert.ok(text.includes('error')); assert.ok(!text.includes('PRIVATE-TO-B'));
+    await expectRpcError(unknown, { status: 200, id: 9, code: -32601, message: 'Method not found' });
   });
   it('caps uploaded bytes and applies no-store headers', async () => {
     const response = await local.raw({ body: JSON.stringify({ padding: 'x'.repeat(17000) }) });
     assert.equal(response.status, 413); assert.equal(response.headers.get('Cache-Control'), 'no-store');
   });
   it('terminates an incomplete HTTP upload within the body deadline', async () => {
-    const token = await local.assertion();
-    const status = await new Promise((resolve, reject) => {
-      const request = httpRequest(local.url, { method: 'POST', headers: {
-        'Content-Type': 'application/json', Accept: 'application/json, text/event-stream',
-        'Transfer-Encoding': 'chunked', 'Cf-Access-Jwt-Assertion': token
-      } }, response => {
-        response.resume(); response.on('end', () => { resolve(response.statusCode); request.destroy(); });
-      });
-      request.on('error', reject); request.setTimeout(5000, () => { request.destroy(); reject(new Error('TEST_UPLOAD_NOT_BOUNDED')); });
-      request.write('{'); // Deliberately no end(): the worker must terminate its own read.
-    });
+    const status = await local.rawHttp({ incomplete: true });
     assert.equal(status, 408);
   });
   it('requires the local synthetic switch', async () => {
