@@ -23,4 +23,12 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: node scripts/tooling.mjs test --config vitest.b3.config.ts
-      - run: node scripts/verify-b3-preservation.mjs
+      - name: Verify preservation for the target branch
+        env:
+          B4_PRESERVATION: ${{ github.ref == 'refs/heads/b4/cloudflare-access-mcp' || github.base_ref == 'b4/cloudflare-access-mcp' }}
+        run: |
+          if [[ "$B4_PRESERVATION" == "true" ]]; then
+            node scripts/verify-b4-preservation.mjs
+          else
+            node scripts/verify-b3-preservation.mjs
+          fi

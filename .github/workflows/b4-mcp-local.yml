@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [mcp, persistence, recovery, vault]
+        suite: [mcp, persistence, recovery, vault, integration, buffering, regression]
     env:
       CI: 'true'
       WRANGLER_SEND_METRICS: 'false'
@@ -28,10 +28,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Set up Node 24
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version: '24.22.1'
           package-manager-cache: false
       - name: Install root dependencies
         working-directory: .
@@ -42,47 +43,16 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Verify complete test suite inventory
         timeout-minutes: 1
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          import { readdirSync } from 'node:fs';
-          assert.deepEqual(readdirSync('tests', { recursive: true }).filter(name => name.endsWith('.test.mjs')).sort(),
-            ['hardening.test.mjs', 'interoperability.test.mjs', 'persistence.test.mjs', 'recovery.test.mjs', 'vault-isolation.test.mjs']);
-          NODE
+        run: node scripts/ci.mjs verify
       - name: Typecheck MCP
         timeout-minutes: 2
         run: npm run typecheck
-      - name: Typecheck persistent fixture
-        if: matrix.suite == 'persistence'
-        timeout-minutes: 2
-        run: npm exec -- tsc --noEmit -p tsconfig.persistence.json
-      - name: Typecheck recovery fixture
-        if: matrix.suite == 'recovery'
-        timeout-minutes: 2
-        run: npm exec -- tsc --noEmit -p tsconfig.recovery.json
-      - name: Typecheck isolated vault fixture
-        if: matrix.suite == 'vault'
-        timeout-minutes: 2
-        run: npm exec -- tsc --noEmit -p tsconfig.vault.json
       - name: Build local MCP
         timeout-minutes: 1
         run: npm run build:local
-      - name: Test MCP interoperability and harness
-        if: matrix.suite == 'mcp'
-        timeout-minutes: 3
-        run: node --test tests/interoperability.test.mjs tests/hardening.test.mjs
-      - name: Test synthetic persistent grants
-        if: matrix.suite == 'persistence'
-        timeout-minutes: 3
-        run: node --test tests/persistence.test.mjs
-      - name: Test synthetic recovery and CAS faults
-        if: matrix.suite == 'recovery'
-        timeout-minutes: 5
-        run: node --test tests/recovery.test.mjs
-      - name: Test synthetic account vault isolation
-        if: matrix.suite == 'vault'
-        timeout-minutes: 3
-        run: node --test tests/vault-isolation.test.mjs
+      - name: Execute the assigned synthetic suite and typecheck
+        timeout-minutes: ${{ matrix.suite == 'recovery' && 5 || 3 }}
+        run: node scripts/ci.mjs run "${{ matrix.suite }}"
       - name: Demonstrate synthetic MCP
         if: matrix.suite == 'mcp'
         timeout-minutes: 2
@@ -91,3 +61,17 @@ jobs:
         if: matrix.suite == 'mcp'
         timeout-minutes: 2
         run: npm audit --audit-level=low
+      - name: Audit root dependencies
+        if: matrix.suite == 'mcp'
+        working-directory: .
+        timeout-minutes: 2
+        run: npm run audit:dependencies
+      - name: Verify root registry signatures
+        if: matrix.suite == 'mcp'
+        working-directory: .
+        timeout-minutes: 2
+        run: npm run audit:registry-signatures
+      - name: Verify MCP registry signatures
+        if: matrix.suite == 'mcp'
+        timeout-minutes: 2
+        run: node --use-env-proxy ../../scripts/audit-registry-signatures.mjs
