@@ -2,8 +2,24 @@
 
 Protótipo isolado, originalmente baseado em `97e76a655c389c61bf1001f8d0c4333d2855aee1`.
 A evolução local 2B.2-A parte de `dd2933d1c1d39e76e8d9011048666933be6b2eb6`; consulte [a arquitetura persistente](docs/persistence.md).
-Não altera os arquivos herdados, não integra o Worker existente e não contém configuração de deploy.
+O código funcional B3.1 e o Worker existente permanecem preservados; as exceções históricas autorizadas são os dois manifests/locks da raiz e o workflow SQLite. Não contém configuração de deploy para a composição.
 Executa apenas no loopback `http://127.0.0.1:<porta>/mcp`, com Miniflare/workerd local, identidades RS256 efêmeras e fixtures.
+
+## Estado consolidado 2B.3-D-R
+
+A reprodução atual usa Node **24.22.1** (Undici interno **7.30.1**), os dois lockfiles aprovados e a composição [integrada](docs/integration.md). A família Cloudflare foi atualizada para remover código incorporado vulnerável. Não há overrides ativos: os pais corrigidos fixam as versões necessárias. As seções de fases anteriores abaixo são histórico, não contagens atuais de CI ou autorização operacional.
+
+O novo verificador `scripts/verify-b4-preservation.mjs`, executado na raiz, exige **94/97** arquivos históricos idênticos e três exceções fechadas: `package.json`, `package-lock.json` e `.github/workflows/b3-sqlite.yml`. O script B3.1 original permanece intacto e é usado fora da branch B4. Dependências, lockfiles e permissões não podem ser alterados para reproduzir esta etapa.
+
+```sh
+# Depois de npm ci --ignore-scripts na raiz e no subprojeto:
+node scripts/ci.mjs verify
+for suite in mcp persistence recovery vault integration buffering regression; do
+  node scripts/ci.mjs run "$suite" || exit 1
+done
+```
+
+Executar a partir deste subprojeto, em ambiente local autorizado para subprocessos/loopback. `npm test` descobre os sete `.test.mjs`; a prova independente de **14 casos JSON/SSE** é executada separadamente pelo grupo `buffering`. Nenhum comando precisa de credenciais ou acesso ao Mercado Livre. Os logs/dados/bundles ficam em `work/` ignorado. CI remoto só poderá ser confirmado após publicação expressamente autorizada.
 
 ## Reproduzir no checkout isolado
 

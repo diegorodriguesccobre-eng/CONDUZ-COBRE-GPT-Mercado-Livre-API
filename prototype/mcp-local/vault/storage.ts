@@ -1,13 +1,12 @@
 import { DurableObject } from 'cloudflare:workers';
 import { z } from 'zod';
 import { TokenKeyring } from '../../../src/b3/keyring';
-import { TokenCoordinator, type TokenProvider } from '../../../src/b3/token-service';
-import { CandidateAdapter } from '../../../src/b3/adapter';
 import { SqliteStore } from '../../../src/vault/sqlite-store';
-import type { TokenRecord, VaultStore, TokenRow } from '../../../src/types';
+import type { TokenRecord, TokenRow } from '../../../src/types';
 import type { PersistentEnv } from '../src/persistent-policy';
 import { VAULTS, accountSchema, requestSchema, materialSchema, context, type Account } from './model';
 import { INJECTION_TEXT } from '../src/synthetic';
+import { readVaultCore, type ReadHooks } from './read-core';
 
 export interface VaultEnv extends PersistentEnv {
   SYNTHETIC_ONLY?: string;
@@ -15,14 +14,13 @@ export interface VaultEnv extends PersistentEnv {
   SYNTHETIC_VAULTS: DurableObjectNamespace<SyntheticAccountVault>;
 }
 const fail = (): never => { throw new Error('SYNTHETIC_VAULT_DENIED'); };
-const recordSchema = z.strictObject({ accessToken: z.string(), refreshToken: z.string(), sellerId: z.string(),
-  expiresAt: z.number().int().positive(), generation: z.number().int().positive() });
+
 
 // New class/binding for the synthetic fixture only. Never replaces or migrates a B3.1 vault.
 export class SyntheticAccountVault extends DurableObject<VaultEnv> {
   private readonly store: SqliteStore;
   private tail: Promise<unknown> = Promise.resolve();
-  constructor(ctx: DurableObjectState, env: VaultEnv) {
+  constructor(ctx: DurableObjectState, env: VaultEnv, private readonly readHooks?: (request: z.infer<typeof requestSchema>) => ReadHooks | undefined) {
     super(ctx, env); this.store = new SqliteStore(ctx.storage);
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS isolation_meta (key TEXT PRIMARY KEY,value TEXT NOT NULL)');
     ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS isolation_nonces (nonce TEXT PRIMARY KEY)');
@@ -56,6 +54,10 @@ export class SyntheticAccountVault extends DurableObject<VaultEnv> {
       const u = new URL(request.url), fault = this.get('fault');
       if (request.method !== 'GET' || request.headers.get('Authorization') !== `Bearer ${m.access}`) fail();
       if (fault === 'transport') throw new Error(m.access); // Canary: adapter must sanitize arbitrary provider errors.
+      if (fault === 'http-429' || fault === 'http-503') return new Response('SYNTHETIC_PROVIDER_UNAVAILABLE', { status: fault === 'http-429' ? 429 : 503 });
+      if (fault === 'body-error') return new Response(new ReadableStream<Uint8Array>({
+        start(c) { c.error(new Error('SYNTHETIC_PROVIDER_BODY_FAILURE')); }
+      }), { headers: { 'Content-Type': 'application/json' } });
       if (fault === 'pause') {
         this.put('paused', true);
         await new Promise<void>(resolve => { this.release = resolve; });
@@ -83,53 +85,21 @@ export class SyntheticAccountVault extends DurableObject<VaultEnv> {
       let account: Account | undefined;
       try {
         const r = requestSchema.parse(input); account = r.account;
-        this.checkStorage(); const expected = this.binding(account);
-        if (this.get('account') !== account) fail();
-        const keys = this.keys(account);
-        const identity = await keys.open<unknown>(String(this.get('identity')));
-        if (JSON.stringify(identity) !== JSON.stringify(expected)) fail();
-        await this.authorize(r);
-        this.ctx.storage.sql.exec('INSERT INTO isolation_nonces VALUES(?)', r.nonce); await this.ctx.storage.sync();
-        this.checkStorage(); const row = this.store.getTokens(); if (!row || row.status !== 'ready') return fail();
-        const record = recordSchema.parse(await keys.open<TokenRecord>(row.ciphertext));
-        if (record.sellerId !== expected.seller || record.expiresAt <= Date.now() + 30000) fail();
-        const m = materialSchema.parse(this.env.SYNTHETIC_VAULT_MATERIAL)[account];
-        if (record.accessToken !== m.access || record.refreshToken !== m.refresh) fail();
-        const readonlyStore: VaultStore = { getTokens: () => { this.checkStorage(); return this.store.getTokens(); },
-          putTokens: () => fail(), putState: () => fail(), takeState: () => fail() };
-        const adapter = new CandidateAdapter(expected.seller, 'SYNTHETIC_DISABLED', 'SYNTHETIC_DISABLED', this.transport(account));
-        // withAccess may refresh by design in B3.1. The immutable facade rejects its write-ahead marker
-        // before it can reach refresh; this prototype never offers connect/refresh/rotate to an operator.
-        const disabled: TokenProvider = { exchange: async () => fail(), refresh: async () => fail(), identity: t => adapter.identity(t) };
-        const coordinator = new TokenCoordinator(readonlyStore, keys, disabled, expected.seller);
-        const data = await coordinator.withAccess(async token => {
-          const me = await adapter.identity(token); // Search has no seller in its draft response: bind identity first.
-          if (r.operation === 'account') return { account_ref: account, nickname: me.nickname, site: me.siteId };
-          if (r.operation === 'listing') {
-            const index = expected.legacy.findIndex(x => x === r.itemId); if (index < 0) return fail();
-            const item = await adapter.reads.item(token, expected.numeric[index]!);
-            if (item.status !== 'active') return fail();
-            return { item_id: r.itemId!, title: item.title, status: 'active', price: item.price };
-          }
-          const found = await adapter.reads.listings(token, r.limit!, r.offset!);
-          if (found.total > 2) return fail();
-          const ids: string[] = [];
-          for (const id of found.ids) {
-            const index = expected.numeric.findIndex(x => x === id); if (index < 0) return fail();
-            await adapter.reads.item(token, id); // Independently validates seller for every returned ID.
-            ids.push(expected.legacy[index]!);
-          }
-          return { ids, total: found.total, next_offset: r.offset! + r.limit! < found.total ? r.offset! + r.limit! : null };
+        const hooks = this.readHooks?.(r);
+        const result = await readVaultCore(r, {
+          store: this.store, hooks, checkStorage: () => this.checkStorage(), binding: a => this.binding(a),
+          storedAccount: () => this.get('account'), storedIdentity: () => this.get('identity'), keys: a => this.keys(a),
+          authorize: value => this.authorize(value), consumeNonce: async nonce => {
+            this.ctx.storage.sql.exec('INSERT INTO isolation_nonces VALUES(?)', nonce); await this.ctx.storage.sync();
+          }, materials: () => this.env.SYNTHETIC_VAULT_MATERIAL, transport: a => this.transport(a)
         });
-        this.checkStorage();
-        if (JSON.stringify(this.store.getTokens()) !== JSON.stringify(row)) fail();
-        await this.authorize(r); // Revocation/expiry while awaiting the adapter cannot release a result.
-        const serialized = JSON.stringify(data);
-        const secrets = Object.values(materialSchema.parse(this.env.SYNTHETIC_VAULT_MATERIAL)).flatMap(v => [v.key, v.access, v.refresh]);
-        if (secrets.some(s => serialized.includes(s)) || /SYNTHETIC_(?:ACCESS|REFRESH)_[AB]_/i.test(serialized)) fail();
+        const data = result.data;
         this.ctx.storage.sql.exec('INSERT INTO isolation_audit(event) VALUES(?)', JSON.stringify({ account, subject: r.subject, operation: r.operation, result: 'allow' }));
-        await this.ctx.storage.sync(); return { ok: true as const, data };
-      } catch {
+        await this.ctx.storage.sync();
+        if (hooks) await hooks.phase('after-audit', result.stamp);
+        return { ok: true as const, data };
+      } catch (error) {
+        try { this.readHooks?.(requestSchema.parse(input))?.failed(error); } catch { /* Invalid input has no integration context. */ }
         // Never relay arbitrary exceptions, ciphertexts, tokens or key material to MCP or runtime logs.
         try { this.ctx.storage.sql.exec('INSERT INTO isolation_audit(event) VALUES(?)', JSON.stringify({ account, result: 'deny' })); await this.ctx.storage.sync(); } catch { /* Still deny. */ }
         return { ok: false as const, code: 'SYNTHETIC_VAULT_DENIED' };
