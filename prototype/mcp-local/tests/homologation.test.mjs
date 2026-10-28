@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, renameSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { collectSnapshot, validateSnapshot, M1_ADDED, M1_MODIFIED, M1_BASE, B31 } from '../../../scripts/verify-b4-preservation.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { collectSnapshot, validateSnapshot, expectedSQLiteWorkflow, M1_ADDED, M1_MODIFIED, M1_BASE, B31, M20_BASE, M20_MODIFIED } from '../../../scripts/verify-b4-preservation.mjs';
 import { verifyInventory } from '../scripts/ci.mjs';
 
 const project = fileURLToPath(new URL('..', import.meta.url));
@@ -24,7 +24,7 @@ const collected = collectSnapshot(root);
 const complete = () => {
   const current = new Map(collected.current);
   for (const p of paths) if (!current.has(p)) current.set(p, Buffer.from('MEMORY_ONLY_NEW_M1_PATH'));
-  return { ...collected, current, m1Base: new Map(collected.m1Base) };
+  return { ...collected, current, m1Base: new Map(collected.m1Base), m20Base: new Map(collected.m20Base) };
 };
 const refused = (s, reason) => assert.throws(() => validateSnapshot(s), e =>
   e instanceof Error && e.constructor.name === 'PreservationFailure' && (typeof reason === 'string' ? e.message === reason : reason.test(e.message)));
@@ -191,7 +191,7 @@ test('M1-02: other workflows and Worker remain byte protected', () => {
 const sqliteWorkflow = readFileSync(resolve(root, sqlitePath), 'utf8');
 const selector = sqliteWorkflow.match(/^\s+B4_PRESERVATION: \$\{\{ (.+) \}\}$/m)?.[1];
 assert.ok(selector);
-// Independent evaluator for the actual expression's deliberately restricted grammar.
+// This expression is now a deny-only context hint. Real selection is tested against Git DAGs below.
 const terms = selector.split(' || ').map(term => {
   const match = /^github\.(ref|base_ref|head_ref) == '([^']+)'$/.exec(term); assert.ok(match, 'Unexpected routing expression');
   return { field: match[1], value: match[2] };
@@ -210,7 +210,7 @@ const contexts = [
   { name: 'missing branch metadata', ref: 'refs/pull/5/merge', base_ref: 'main', head_ref: '', b4: false }
 ];
 for (const context of contexts) test('M1-02: SQLite routing ' + context.name, () => {
-  assert.equal(selected(context), context.b4); ciContextEvidence.push({ ...context, selectedVerifier: context.b4 ? 'B4' : 'B3' });
+  assert.equal(selected(context), context.b4); ciContextEvidence.push({ ...context, denyOnlyB4Hint: selected(context), selectsVerifier: false });
 });
 const shellAnchor = '        run: |\n'; assert.equal(sqliteWorkflow.split(shellAnchor).length, 2);
 const shell = sqliteWorkflow.split(shellAnchor)[1].split('\n').filter(Boolean).map(line => {
@@ -236,6 +236,196 @@ test('M1-02: actual SQLite shell preserves B3 selection on the unchanged histori
     }));
     assert.deepEqual(result.modified, []); assert.ok(Object.values(result.checks).every(value => value === true));
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+// Actual Git object graphs, confined to disposable fixtures. No project commit or branch is created.
+const m20RoutingEvidence = [];
+const mainBeforeB4 = 'ed36da553b4dbd0c3c5d574e7db0b0d61fb1cd6d';
+const b3Checkpoint = 'a53f7f3af8c0edb0da856916b60706b342d0118a';
+test('M2.0: exact SQLite transformation preserves shell dollar and quote bytes', () => {
+  const expected = expectedSQLiteWorkflow(collected.historical.get(sqlitePath));
+  assert.deepEqual(Buffer.from(expected), readFileSync(resolve(root, sqlitePath)));
+  assert.ok(expected.includes(".promisor)$'"));
+});
+function gitFixture(run, { ref = M20_BASE, history = 'full', install = ref === M20_BASE } = {}) {
+  mkdirSync(resolve(project, 'work'), { recursive: true });
+  const directory = mkdtempSync(resolve(project, 'work/m20-git-')), repo = resolve(directory, 'repository');
+  const gitEnv = { ...process.env, GIT_NO_REPLACE_OBJECTS: '1', GIT_OPTIONAL_LOCKS: '0',
+    GIT_AUTHOR_NAME: 'Synthetic M2.0 Fixture', GIT_AUTHOR_EMAIL: 'm20@example.invalid',
+    GIT_COMMITTER_NAME: 'Synthetic M2.0 Fixture', GIT_COMMITTER_EMAIL: 'm20@example.invalid',
+    GIT_AUTHOR_DATE: '2001-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2001-01-01T00:00:00Z' };
+  const git = (...args) => execFileSync('git', ['--no-optional-locks', ...args], {
+    cwd: repo, env: gitEnv, stdio: 'pipe', timeout: 15000 }).toString().trim();
+  const installCandidate = () => { for (const path of M20_MODIFIED) fixtureWrite(repo, path, readFileSync(resolve(root, path))); };
+  try {
+    if (history === 'missing-checkpoint') {
+      mkdirSync(repo); git('init', '--quiet'); git('fetch', '--quiet', '--no-tags', root, ref);
+    } else {
+      execFileSync('git', history === 'shallow'
+        ? ['clone', '--quiet', '--depth', '1', pathToFileURL(root).href, repo]
+        : ['clone', '--quiet', '--no-hardlinks', root, repo], { env: gitEnv, stdio: 'pipe', timeout: 15000 });
+    }
+    git('checkout', '--quiet', '--detach', ref);
+    if (install) installCandidate();
+    const fixture = { repo, directory, git, installCandidate,
+      commit: parents => git('commit-tree', git('rev-parse', M20_BASE + '^{tree}'),
+        ...parents.flatMap(parent => ['-p', parent]), '-m', 'SYNTHETIC M2.0 DAG ONLY'),
+      checkout: commit => { git('checkout', '--quiet', '--detach', commit); installCandidate(); }
+    };
+    return run(fixture);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+}
+function selection(repo, extraEnv = {}) {
+  try {
+    return { exit: 0, signal: null, stdout: execFileSync('bash', ['-eu', '-o', 'pipefail', '-c', shell], {
+      cwd: repo, env: { ...process.env, B4_PRESERVATION: 'false', ...extraEnv }, stdio: 'pipe', timeout: 15000
+    }).toString(), stderr: '' };
+  } catch (error) {
+    return { exit: error.status, signal: error.signal, stdout: String(error.stdout ?? ''), stderr: String(error.stderr ?? '') };
+  }
+}
+function workflowFailure(result, code) {
+  assert.equal(result.exit, 1); assert.equal(result.signal, null);
+  assert.match(result.stderr, new RegExp('(?:^|\\n)PRESERVATION_SELECTION_FAILED:' + code + '(?:\\n|$)'));
+  assert.equal(result.stdout.includes('"allBaseFilesByteIdentical"'), false, 'Never fall back after a selector refusal');
+}
+function checkedSelection(fixture, name, expected, extraEnv) {
+  const r = selection(fixture.repo, extraEnv);
+  if (expected === 'B4' || expected === 'B3') {
+    assert.equal(r.exit, 0, r.stderr); assert.equal(r.signal, null); const report = JSON.parse(r.stdout);
+    if (expected === 'B4') {
+      assert.equal(report.m20Base, M20_BASE); assert.equal(report.m20ProtectedFiles, 169);
+      assert.equal(report.candidateFiles, 172); assert.equal(report.byteIdentical, 94); assert.equal(report.activationBlocked, true);
+    } else {
+      assert.equal(report.base, 'f59081e223006f3eb0739d01073ed2eba824687e');
+      assert.deepEqual(report.modified, []); assert.ok(Object.values(report.checks).every(value => value === true));
+    }
+  } else workflowFailure(r, expected);
+  m20RoutingEvidence.push({ name, expected, exit: r.exit, signal: r.signal, syntheticGitFixture: true });
+  return r;
+}
+test('M2.0: only the three approved modifications are permitted in the 172-file checkpoint', () => {
+  assert.equal(M20_BASE, '014a2a5a49211d31bb9275e236fd2c31c1be93d8');
+  assert.deepEqual(M20_MODIFIED, ['.github/workflows/b3-sqlite.yml', 'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
+  assert.equal(Object.isFrozen(M20_MODIFIED), true);
+  const report = validateSnapshot(complete()); assert.equal(report.m20PublishedFiles, 172); assert.equal(report.m20ProtectedFiles, 169);
+});
+test('M2.0: every other 169 checkpoint files still rejects an extra byte', () => {
+  let count = 0;
+  for (const path of collected.m20Base.keys()) if (!M20_MODIFIED.includes(path)) {
+    const s = complete(); s.current.set(path, Buffer.concat([s.current.get(path), Buffer.from('\n')]));
+    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:)/); count++;
+  }
+  assert.equal(count, 169);
+});
+test('M2.0: fixed checkpoint ancestry and inventory cannot be omitted', () => {
+  refused({ ...complete(), m20Ancestor: false }, 'M20_BASE_DIVERGED');
+  const s = complete(); s.m20Base.delete('src/b3/adapter.ts'); refused(s, 'M20_BASE_INVENTORY');
+});
+for (const [name, env] of [
+  ['checkpoint with no B4 context hint', {}],
+  ['unset context hint', { B4_PRESERVATION: undefined }],
+  ['B4 push context', { B4_PRESERVATION: 'true' }],
+  ['missing branch metadata', { GITHUB_REF: '', GITHUB_HEAD_REF: '', GITHUB_BASE_REF: '' }],
+  ['spoofed main metadata cannot downgrade B4', { GITHUB_REF: 'refs/heads/main', B4_PRESERVATION: 'false' }],
+  ['external checkpoint variable is ignored', { checkpoint: B31, b3_checkpoint: mainBeforeB4, B4_CHECKPOINT: B31 }]
+]) test('M2.0: actual selection ' + name, () => gitFixture(f => checkedSelection(f, name, 'B4', env)));
+for (const [name, graph, env] of [
+  ['PR B4 to main merge ref', f => f.commit([mainBeforeB4, M20_BASE]), { B4_PRESERVATION: 'true' }],
+  ['main after merge commit', f => f.commit([mainBeforeB4, M20_BASE]), { B4_PRESERVATION: 'false', GITHUB_REF: 'refs/heads/main' }],
+  ['future main descendant', f => f.commit([f.commit([mainBeforeB4, M20_BASE])]), {}],
+  ['future feature and PR derived from B4', f => f.commit([f.commit([mainBeforeB4, M20_BASE]), f.commit([M20_BASE])]),
+    { B4_PRESERVATION: 'false', GITHUB_BASE_REF: 'main', GITHUB_HEAD_REF: 'future-feature' }]
+]) test('M2.0: real DAG selects B4 for ' + name, () => gitFixture(f => {
+  const commit = graph(f); f.checkout(commit); checkedSelection(f, name, 'B4', env);
+  assert.equal(f.git('merge-base', '--is-ancestor', M20_BASE, 'HEAD'), '');
+}));
+for (const [name, ref] of [['historical B3 branch', b3Checkpoint], ['historical B3.1 branch', B31], ['historical main on B3.1', B31]]) {
+  test('M2.0: original B3 verifier remains required for ' + name, () => gitFixture(f => {
+    assert.deepEqual(readFileSync(resolve(f.repo, 'scripts/verify-b3-preservation.mjs')), readFileSync(resolve(root, 'scripts/verify-b3-preservation.mjs')));
+    checkedSelection(f, name, 'B3');
+  }, { ref, install: false }));
+}
+test('M2.0: actual main before B3/B4 has no verifier and cannot acquire a permissive pass', () => gitFixture(f => {
+  assert.throws(() => readFileSync(resolve(f.repo, 'scripts/verify-b3-preservation.mjs')), { code: 'ENOENT' });
+  checkedSelection(f, 'actual main before incorporation', 'UNRECOGNIZED_LINEAGE');
+}, { ref: mainBeforeB4, install: false }));
+test('M2.0: B4 context metadata cannot authorize an unrelated historical B3 tree', () => gitFixture(f => {
+  checkedSelection(f, 'spoofed B4 hint on B3', 'B4_CONTEXT_WITHOUT_ANCESTRY', { B4_PRESERVATION: 'true' });
+}, { ref: B31, install: false }));
+test('M2.0: malformed external context is denied instead of interpreted as permission', () => gitFixture(f => {
+  checkedSelection(f, 'malformed context', 'INVALID_CONTEXT', { B4_PRESERVATION: 'true || echo BYPASS' });
+}));
+test('M2.0: a genuinely shallow clone never falls back', () => gitFixture(f => {
+  assert.equal(f.git('rev-parse', '--is-shallow-repository'), 'true'); checkedSelection(f, 'shallow history', 'SHALLOW_HISTORY');
+}, { history: 'shallow' }));
+test('M2.0: a missing B4 checkpoint never falls back to otherwise valid B3', () => gitFixture(f => {
+  checkedSelection(f, 'missing checkpoint', 'CHECKPOINT_MISSING');
+}, { ref: B31, install: false, history: 'missing-checkpoint' }));
+test('M2.0: invalid Git configuration is an explicit failure rather than a historical selection', () => gitFixture(f => {
+  writeFileSync(resolve(f.repo, '.git/config'), '[SYNTHETIC_INVALID_CONFIG'); checkedSelection(f, 'Git failure', 'GIT_FAILED');
+}));
+test('M2.0: missing HEAD is an explicit failure', () => gitFixture(f => {
+  writeFileSync(resolve(f.repo, '.git/HEAD'), 'ref: refs/heads/nonexistent\n'); checkedSelection(f, 'missing HEAD', 'HEAD_MISSING');
+}));
+test('M2.0: another enclosing repository cannot silently supply missing history', () => gitFixture(f => {
+  renameSync(resolve(f.repo, '.git'), resolve(f.directory, 'git-removed')); checkedSelection(f, 'repository discovery escape', 'REPOSITORY_ROOT');
+}));
+test('M2.0: replace refs cannot manufacture checkpoint ancestry', () => gitFixture(f => {
+  f.git('update-ref', 'refs/replace/' + M20_BASE, B31); checkedSelection(f, 'replace refs', 'REPLACED_HISTORY');
+}));
+test('M2.0: grafted history is refused', () => gitFixture(f => {
+  fixtureWrite(f.repo, '.git/info/grafts', M20_BASE + ' ' + B31 + '\n'); checkedSelection(f, 'grafted history', 'GRAFTED_HISTORY');
+}));
+for (const variable of ['GIT_GRAFT_FILE','GIT_SHALLOW_FILE','GIT_REPLACE_REF_BASE']) test('M2.0: untrusted history override ' + variable + ' is refused', () => gitFixture(f => {
+  checkedSelection(f, variable, 'HISTORY_OVERRIDE', { [variable]: resolve(f.directory, 'untrusted') });
+}));
+test('M2.0: partial clone state is refused without lazy fetch', () => gitFixture(f => {
+  f.git('config', 'remote.origin.promisor', 'true'); checkedSelection(f, 'partial clone', 'PARTIAL_HISTORY');
+}));
+for (const [name, parent, expected] of [['squash onto old main', mainBeforeB4, 'UNRECOGNIZED_LINEAGE'], ['rewritten/rebased B4 checkpoint', B31, 'B4_WITHOUT_ANCESTRY']]) {
+  test('M2.0: incompatible history ' + name + ' cannot authorize B4 content', () => gitFixture(f => {
+    const rewritten = f.commit([parent]); f.checkout(rewritten); checkedSelection(f, name, expected);
+  }));
+}
+test('M2.0: untracked B4 markers prevent historical fallback', () => gitFixture(f => {
+  fixtureWrite(f.repo, 'src/b4/local.ts', 'SYNTHETIC_UNPROVEN_B4'); checkedSelection(f, 'unproven working tree', 'B4_WITHOUT_ANCESTRY');
+}, { ref: B31, install: false }));
+test('M2.0: absent B4 verifier cannot fall back', () => gitFixture(f => {
+  rmSync(resolve(f.repo, 'scripts/verify-b4-preservation.mjs')); checkedSelection(f, 'missing B4 verifier', 'B4_VERIFIER_MISSING');
+}));
+test('M2.0: symlinked B4 verifier cannot be executed', () => gitFixture(f => {
+  const p = resolve(f.repo, 'scripts/verify-b4-preservation.mjs'); rmSync(p); symlinkSync('verify-b3-preservation.mjs', p);
+  checkedSelection(f, 'B4 verifier symlink', 'B4_VERIFIER_MISSING');
+}));
+test('M2.0: B4 verifier exit is propagated without invoking B3', () => gitFixture(f => {
+  fixtureWrite(f.repo, 'scripts/verify-b4-preservation.mjs', "console.error('SYNTHETIC_B4_VERIFIER_FAILURE');process.exit(27);\n");
+  const r = selection(f.repo); assert.equal(r.exit, 27); assert.equal(r.signal, null);
+  assert.equal(r.stderr.trim(), 'SYNTHETIC_B4_VERIFIER_FAILURE'); assert.equal(r.stdout, '');
+  m20RoutingEvidence.push({ name: 'B4 verifier failure', exit: r.exit, noFallback: true });
+}));
+test('M2.0: actual B4 historical-file rejection is propagated intact', () => gitFixture(f => {
+  fixtureWrite(f.repo, 'src/b3/adapter.ts', 'SYNTHETIC_UNAUTHORIZED_CHANGE');
+  const r = selection(f.repo); assert.equal(r.exit, 1); assert.equal(r.signal, null); assert.equal(r.stdout, '');
+  assert.deepEqual(JSON.parse(r.stderr), { preservation: 'FAILED', code: 'HISTORICAL_CHANGED:src/b3/adapter.ts' });
+  m20RoutingEvidence.push({ name: 'B4 verification failure', exit: r.exit, code: 'HISTORICAL_CHANGED', noFallback: true });
+}));
+test('M2.0: absent B3 verifier is denied', () => gitFixture(f => {
+  rmSync(resolve(f.repo, 'scripts/verify-b3-preservation.mjs')); checkedSelection(f, 'missing B3 verifier', 'B3_VERIFIER_MISSING');
+}, { ref: B31, install: false }));
+test('M2.0: altered B3 verifier is denied even if it would return success', () => gitFixture(f => {
+  fixtureWrite(f.repo, 'scripts/verify-b3-preservation.mjs', 'process.exit(0);\n'); checkedSelection(f, 'B3 verifier tamper', 'B3_VERIFIER_CHANGED');
+}, { ref: B31, install: false }));
+test('M2.0: original B3 verifier still rejects its own protected-file mutations', () => gitFixture(f => {
+  const file = 'src/preparation/config.ts'; fixtureWrite(f.repo, file, readFileSync(resolve(f.repo, file), 'utf8') + '\n');
+  const r = selection(f.repo); assert.equal(r.exit, 1); assert.equal(r.signal, null);
+  const report = JSON.parse(r.stdout); assert.ok(report.modified.includes(file)); assert.equal(report.checks.allBaseFilesByteIdentical, false);
+  m20RoutingEvidence.push({ name: 'B3 verification failure', exit: r.exit, noFallback: true });
+}, { ref: B31, install: false }));
+test('M2.0: process/transport errors cannot satisfy an explicit selector refusal assertion', () => {
+  for (const [exit, signal] of [[null, null], [null, 'SIGTERM'], [137, 'SIGKILL']]) {
+    assert.throws(() => workflowFailure({ exit, signal, stdout: '', stderr: 'PRESERVATION_SELECTION_FAILED:GIT_FAILED\n' }, 'GIT_FAILED'));
+  }
 });
 
 test('M1-03: only integration receives five minutes; recovery stays five and other groups three', () => {
@@ -822,5 +1012,6 @@ test('M1 public build exports only the handler and excludes private fixtures and
 });
 after(() => writeFileSync(resolve(project, 'work/homologation/test-evidence.json'), JSON.stringify({
   syntheticOnly: true, productionReady: false, administrativeMfaProven: false, realQuorumProven: false,
-  independentReferenceProven: false, completedScenarios: evidence, portEvidence, ciContexts: ciContextEvidence, cancellationEvidence
+  independentReferenceProven: false, completedScenarios: evidence, portEvidence, ciContexts: ciContextEvidence, cancellationEvidence,
+  preservationRouting: m20RoutingEvidence
 }, null, 2) + '\n'));
