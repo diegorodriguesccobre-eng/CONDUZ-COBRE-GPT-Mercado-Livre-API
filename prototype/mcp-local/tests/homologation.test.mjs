@@ -262,10 +262,11 @@ function gitFixture(run, { ref = M20_BASE, history = 'full', install = ref === M
       mkdirSync(repo); git('init', '--quiet'); git('fetch', '--quiet', '--no-tags', root, ref);
     } else {
       execFileSync('git', history === 'shallow'
-        ? ['clone', '--quiet', '--depth', '1', pathToFileURL(root).href, repo]
+        ? ['clone', '--quiet', '--no-local', '--no-hardlinks', '--no-tags', '--depth', '1', pathToFileURL(root).href, repo]
         : ['clone', '--quiet', '--no-hardlinks', root, repo], { env: gitEnv, stdio: 'pipe', timeout: 15000 });
     }
-    git('checkout', '--quiet', '--detach', ref);
+    // A depth-one clone contains the source HEAD, not an older checkpoint.
+    git('checkout', '--quiet', '--detach', history === 'shallow' ? 'HEAD' : ref);
     if (install) installCandidate();
     const fixture = { repo, directory, git, installCandidate,
       commit: parents => git('commit-tree', git('rev-parse', M20_BASE + '^{tree}'),
@@ -356,12 +357,52 @@ test('M2.0: B4 context metadata cannot authorize an unrelated historical B3 tree
 test('M2.0: malformed external context is denied instead of interpreted as permission', () => gitFixture(f => {
   checkedSelection(f, 'malformed context', 'INVALID_CONTEXT', { B4_PRESERVATION: 'true || echo BYPASS' });
 }));
+test('M2.0-FIX: full published descendant retains the checkpoint and selects B4', () => gitFixture(f => {
+  assert.notEqual(f.git('rev-parse', 'HEAD'), M20_BASE);
+  assert.equal(f.git('merge-base', '--is-ancestor', M20_BASE, 'HEAD'), '');
+  assert.equal(f.git('rev-parse', '--is-shallow-repository'), 'false');
+  assert.equal(f.git('cat-file', '-t', M20_BASE), 'commit');
+  checkedSelection(f, 'full published descendant', 'B4');
+}, { ref: 'HEAD', install: true }));
 test('M2.0: a genuinely shallow clone never falls back', () => gitFixture(f => {
+  const sourceHead = execFileSync('git', ['--no-replace-objects', 'rev-parse', 'HEAD'], { cwd: root, stdio: 'pipe' }).toString().trim();
+  assert.notEqual(sourceHead, M20_BASE);
+  execFileSync('git', ['--no-replace-objects', 'merge-base', '--is-ancestor', M20_BASE, sourceHead], { cwd: root, stdio: 'pipe' });
+  assert.equal(f.git('rev-parse', 'HEAD'), sourceHead);
+  assert.equal(f.git('rev-list', '--all', '--count'), '1');
+  const commits = f.git('cat-file', '--batch-all-objects', '--batch-check=%(objectname) %(objecttype)')
+    .split('\n').filter(line => line.endsWith(' commit'));
+  assert.deepEqual(commits, [sourceHead + ' commit'], 'No extra reachable or unreachable historical commit objects');
+  assert.throws(() => readFileSync(resolve(f.repo, '.git/objects/info/alternates')), { code: 'ENOENT' });
+  const missing = execFileSync('git', ['--no-replace-objects', 'cat-file', '--batch-check'], {
+    cwd: f.repo, input: [M20_BASE, B31, b3Checkpoint].join('\n') + '\n', stdio: ['pipe','pipe','pipe']
+  }).toString().trim().split('\n');
+  assert.deepEqual(missing, [M20_BASE, B31, b3Checkpoint].map(sha => sha + ' missing'));
   assert.equal(f.git('rev-parse', '--is-shallow-repository'), 'true'); checkedSelection(f, 'shallow history', 'SHALLOW_HISTORY');
+  Object.assign(m20RoutingEvidence.at(-1), { fixturePrepared: true, sourceHead, retainedHead: sourceHead,
+    storedCommitObjects: commits.length, checkpointPresent: false, objectAlternates: false, selectorInvoked: true });
 }, { history: 'shallow' }));
 test('M2.0: a missing B4 checkpoint never falls back to otherwise valid B3', () => gitFixture(f => {
+  assert.equal(f.git('rev-parse', '--is-shallow-repository'), 'false');
+  const absent = execFileSync('git', ['--no-replace-objects', 'cat-file', '--batch-check'], {
+    cwd: f.repo, input: M20_BASE + '\n', stdio: ['pipe','pipe','pipe']
+  }).toString().trim();
+  assert.equal(absent, M20_BASE + ' missing');
   checkedSelection(f, 'missing checkpoint', 'CHECKPOINT_MISSING');
 }, { ref: B31, install: false, history: 'missing-checkpoint' }));
+test('M2.0-FIX: fixture preparation failure cannot count as shallow-history refusal', () => {
+  const missingRef = '0000000000000000000000000000000000000000';
+  let prepared = false, preparationError;
+  try { gitFixture(() => { prepared = true; }, { ref: missingRef, install: false }); }
+  catch (error) { preparationError = error; }
+  assert.equal(prepared, false); assert.ok(preparationError instanceof Error);
+  assert.equal(preparationError.status, 128); assert.equal(preparationError.signal, null);
+  assert.equal(preparationError.message.split('\n')[0], 'Command failed: git --no-optional-locks checkout --quiet --detach ' + missingRef);
+  assert.match(String(preparationError.stderr), new RegExp('^fatal: .*' + missingRef));
+  assert.equal(String(preparationError.stderr).includes('PRESERVATION_SELECTION_FAILED:'), false);
+  assert.throws(() => workflowFailure({ exit: preparationError.status, signal: preparationError.signal,
+    stdout: String(preparationError.stdout ?? ''), stderr: String(preparationError.stderr ?? '') }, 'SHALLOW_HISTORY'));
+});
 test('M2.0: invalid Git configuration is an explicit failure rather than a historical selection', () => gitFixture(f => {
   writeFileSync(resolve(f.repo, '.git/config'), '[SYNTHETIC_INVALID_CONFIG'); checkedSelection(f, 'Git failure', 'GIT_FAILED');
 }));
