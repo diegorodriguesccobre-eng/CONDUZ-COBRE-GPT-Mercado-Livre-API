@@ -51,7 +51,7 @@ jobs:
         timeout-minutes: 1
         run: npm run build:local
       - name: Execute the assigned synthetic suite and typecheck
-        timeout-minutes: ${{ matrix.suite == 'recovery' && 5 || 3 }}
+        timeout-minutes: ${{ (matrix.suite == 'recovery' || matrix.suite == 'integration') && 5 || 3 }}
         run: node scripts/ci.mjs run "${{ matrix.suite }}"
       - name: Demonstrate synthetic MCP
         if: matrix.suite == 'mcp'
