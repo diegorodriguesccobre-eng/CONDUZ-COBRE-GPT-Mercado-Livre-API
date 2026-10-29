@@ -16,16 +16,22 @@
     "audit:workspace": "node scripts/audit-workspace.mjs",
     "contracts:generate": "node scripts/generate-contracts.mjs",
     "contracts:compile": "node scripts/compile-contracts.mjs",
-    "smoke:local": "node scripts/smoke-local.mjs"
+    "smoke:local": "node scripts/smoke-local.mjs",
+    "audit:registry-signatures": "node --use-env-proxy scripts/audit-registry-signatures.mjs",
+    "test:registry": "node --test tests/b1/registry-signatures.node.mjs tests/b1/configuration.node.mjs",
+    "build:production": "node scripts/tooling.mjs build:production"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261019.1",
+    "@cloudflare/vitest-plugin": "1.4.8",
+    "@cloudflare/workers-types": "5.20261023.1",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
+    "esbuild": "0.28.2",
     "typescript": "5.9.3",
     "vitest": "5.0.5",
-    "wrangler": "4.151.3",
-    "@cloudflare/vitest-plugin": "1.4.6",
-    "esbuild": "0.28.2"
+    "wrangler": "4.153.0"
+  },
+  "dependencies": {
+    "jose": "6.2.13"
   }
 }

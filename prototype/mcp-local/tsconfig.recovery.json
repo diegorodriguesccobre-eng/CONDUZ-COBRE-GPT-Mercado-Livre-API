@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "recovery/**/*.ts", "tests/fixtures/recovery-worker.ts", "../../src/**/*.ts"]
+}

@@ -1,0 +1,6 @@
+{
+  "evidence": "SYNTHETIC_DRAFT_NOT_CURRENT_OFFICIAL_CONTRACT",
+  "identity": { "id": 42, "nickname": "SYNTHETIC_B1", "site_id": "MLB", "email": "excluded@example.invalid" },
+  "item": { "id": "MLB0000000000", "seller_id": 42, "title": "Fixture B1 inventada", "price": 129.9, "currency_id": "BRL", "available_quantity": 0, "status": "active" },
+  "search": { "results": ["MLB0000000000"], "paging": { "total": 1, "offset": 0, "limit": 1 } }
+}

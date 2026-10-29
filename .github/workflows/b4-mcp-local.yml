@@ -1,0 +1,77 @@
+name: B4 MCP local synthetic checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-local:
+    name: Synthetic checks (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [mcp, persistence, recovery, vault, integration, buffering, regression]
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    defaults:
+      run:
+        shell: bash
+        working-directory: prototype/mcp-local
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Node 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - name: Install root dependencies
+        working-directory: .
+        timeout-minutes: 3
+        run: npm ci --ignore-scripts
+      - name: Install MCP dependencies
+        timeout-minutes: 3
+        run: npm ci --ignore-scripts
+      - name: Verify complete test suite inventory
+        timeout-minutes: 1
+        run: node scripts/ci.mjs verify
+      - name: Typecheck MCP
+        timeout-minutes: 2
+        run: npm run typecheck
+      - name: Build local MCP
+        timeout-minutes: 1
+        run: npm run build:local
+      - name: Execute the assigned synthetic suite and typecheck
+        timeout-minutes: ${{ (matrix.suite == 'recovery' || matrix.suite == 'integration') && 5 || 3 }}
+        run: node scripts/ci.mjs run "${{ matrix.suite }}"
+      - name: Demonstrate synthetic MCP
+        if: matrix.suite == 'mcp'
+        timeout-minutes: 2
+        run: npm run demo
+      - name: Audit MCP dependencies
+        if: matrix.suite == 'mcp'
+        timeout-minutes: 2
+        run: npm audit --audit-level=low
+      - name: Audit root dependencies
+        if: matrix.suite == 'mcp'
+        working-directory: .
+        timeout-minutes: 2
+        run: npm run audit:dependencies
+      - name: Verify root registry signatures
+        if: matrix.suite == 'mcp'
+        working-directory: .
+        timeout-minutes: 2
+        run: npm run audit:registry-signatures
+      - name: Verify MCP registry signatures
+        if: matrix.suite == 'mcp'
+        timeout-minutes: 2
+        run: node --use-env-proxy ../../scripts/audit-registry-signatures.mjs

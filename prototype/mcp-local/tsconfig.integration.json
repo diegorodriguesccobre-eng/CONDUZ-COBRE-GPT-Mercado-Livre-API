@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/**/*.ts",
+    "recovery/**/*.ts",
+    "vault/**/*.ts",
+    "integration/**/*.ts",
+    "tests/fixtures/integrated-worker.ts",
+    "../../src/**/*.ts",
+    "tests/fixtures/buffering-worker.ts"
+  ]
+}

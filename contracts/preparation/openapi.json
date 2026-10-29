@@ -1,0 +1,36 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "CONDUZ COBRE B1 — preparação desativada", "version": "1.1.0", "description": "Alvo de preparação inerte. OAuth e transporte real permanecem desativados; rotas futuras não estão habilitadas." },
+  "servers": [{ "url": "https://conduz-cobre-ml-api.conduz-cobre.workers.dev" }],
+  "x-production-oauth-enabled": false,
+  "x-real-transport-enabled": false,
+  "security": [{ "accessIdentity": [] }],
+  "components": {
+    "securitySchemes": {
+      "accessIdentity": { "type": "apiKey", "in": "header", "name": "Cf-Access-Jwt-Assertion", "description": "JWT assinado: issuer, audience, algoritmo, validade e subject individual verificados; não confiar no nome do header." },
+      "browserSession": { "type": "apiKey", "in": "cookie", "name": "__Host-conduz_oauth", "description": "Prova aleatória vinculada ao state e à identidade de administrador no servidor. Secure, HttpOnly, SameSite=Lax; uso único e expiração." }
+    }
+  },
+  "paths": {
+    "/oauth/start": {
+      "post": {
+        "operationId": "prepareAdministratorAuthorization",
+        "description": "Futuro: somente administrador autenticado, Origin exata, state e PKCE S256. Atualmente bloqueado.",
+        "responses": { "503": { "description": "OAuth de produção desativado", "content": { "application/json": { "schema": { "$ref": "./disabled.schema.json" } } } } }
+      }
+    },
+    "/oauth/mercadolivre/callback": {
+      "get": {
+        "operationId": "preparedPublicOAuthCallback",
+        "security": [{ "browserSession": [] }],
+        "description": "Retorno público com proteção própria: state + cookie vinculados à sessão administrativa + PKCE + consumo atômico. Sem bypass das rotas internas. Atualmente bloqueado.",
+        "parameters": [
+          { "name": "state", "in": "query", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" } },
+          { "name": "code", "in": "query", "required": false, "schema": { "type": "string", "maxLength": 4096 } },
+          { "name": "error", "in": "query", "required": false, "schema": { "type": "string", "maxLength": 128 } }
+        ],
+        "responses": { "503": { "description": "Callback preparado; OAuth de produção desativado", "content": { "application/json": { "schema": { "$ref": "./disabled.schema.json" } } } } }
+      }
+    }
+  }
+}

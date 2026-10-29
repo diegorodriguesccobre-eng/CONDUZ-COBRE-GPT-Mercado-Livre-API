@@ -1,0 +1,12 @@
+{
+  "stage": "production-preparation",
+  "transport": "disabled",
+  "tenant": "conduz_cobre",
+  "publicOrigin": "https://conduz-cobre-ml-api.conduz-cobre.workers.dev",
+  "redirectUri": "https://conduz-cobre-ml-api.conduz-cobre.workers.dev/oauth/mercadolivre/callback",
+  "accessIssuer": "",
+  "accessAudience": "",
+  "operatorRoles": {},
+  "accountRef": "",
+  "expectedSellerId": ""
+}

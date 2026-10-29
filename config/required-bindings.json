@@ -1,0 +1,11 @@
+{
+  "credentialsSupplied": false,
+  "productionSecrets": [
+    { "name": "BROWSER_STATE_KEY_V1", "purpose": "AES-256-GCM: state e sessão, valor base64url de 32 bytes; diferente da chave B0" },
+    { "name": "TOKEN_ENCRYPTION_KEY_V1", "purpose": "Cofre de tokens futuro, chave própria e plano de rotação" },
+    { "name": "MELI_CLIENT_SECRET", "purpose": "Troca de código futura; somente após aprovação; não lido pelo entrypoint B1" }
+  ],
+  "nonSecretConfiguration": ["MELI_CLIENT_ID", "accessIssuer", "accessAudience", "operatorRoles", "expectedSellerId", "accountRef"],
+  "localOnly": ["INTERNAL_AUTH_KEY", "TOKEN_ENCRYPTION_KEY"],
+  "productionUsesSharedOperatorKey": false
+}
