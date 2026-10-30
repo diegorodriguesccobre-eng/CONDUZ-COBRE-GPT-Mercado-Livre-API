@@ -8,6 +8,53 @@ export const B31 = '6252e84f11891c40ff974e6eb1217836c4365902';
 export const B4 = '6e595e99f2bc0a84cc216b817cf7eab779502065';
 export const M1_BASE = '5f06c69dc3ace96419f4e78a9675d257cc12b45a';
 export const M20_BASE = '014a2a5a49211d31bb9275e236fd2c31c1be93d8';
+export const I1_BASE = 'f20cf44ccf401080f28ff4bb068e27d436d08f66';
+export const I1_ADDED = Object.freeze([
+  'prototype/mcp-local/integration/profile.ts',
+  'prototype/mcp-local/integration/identity-core.ts',
+  'prototype/mcp-local/homologation/service-client.ts',
+  'prototype/mcp-local/lab/tests/boundaries.node.mjs',
+  'tests/b4/m21-preservation.node.mjs',
+  'prototype/mcp-local/recovery/core.ts'
+]);
+export const I1_MODIFIED = Object.freeze([
+  'prototype/mcp-local/integration/composition.ts',
+  'prototype/mcp-local/integration/identity.ts',
+  'prototype/mcp-local/homologation/ports.ts',
+  'scripts/verify-b4-preservation.mjs',
+  'prototype/mcp-local/tests/homologation.test.mjs',
+  'prototype/mcp-local/recovery/model.ts',
+  'prototype/mcp-local/integration/guardian-adapter.ts',
+  'prototype/mcp-local/src/persistent-model.ts'
+]);
+export const I1Q_PATHS = Object.freeze([
+  'prototype/mcp-local/recovery/core.ts',
+  'prototype/mcp-local/recovery/model.ts',
+  'prototype/mcp-local/integration/guardian-adapter.ts',
+  'prototype/mcp-local/src/persistent-model.ts',
+  'prototype/mcp-local/lab/tests/boundaries.node.mjs',
+  'scripts/verify-b4-preservation.mjs',
+  'tests/b4/m21-preservation.node.mjs',
+  'prototype/mcp-local/tests/homologation.test.mjs'
+]);
+// Closed content authorization, not a path-only exception. The verifier digest is
+// normalized solely at its own 64-hex declaration to avoid a recursive self-hash.
+const I1_VERIFIER_HASH = 'a98fac74d975a1189a7ffb9ab2cfb6a5278e80ac9ed532f22fc56225b923963e';
+const I1_CONTENT = Object.freeze({
+  'prototype/mcp-local/recovery/core.ts': 'cab56a3ff02268700c97fbbdb7bf7b6ae6c4735a5d2e5114dfa454ac12244fc0',
+  'prototype/mcp-local/recovery/model.ts': '3a5f0abdc38f07e8ae2d9cfda69b66f44911f489151e0ef242030a77fd3f5cfc',
+  'prototype/mcp-local/integration/guardian-adapter.ts': '262019868c9502d5e1a29155499811ee32bdcbafd91ea402a9922b9662ba6c55',
+  'prototype/mcp-local/src/persistent-model.ts': 'f7e10d8fe5b3af3fca1d666ed170d353bf62c793859cb348992cff05d053566c',
+  'prototype/mcp-local/integration/profile.ts': '0356eb2c14dfd2ee79d0a221292397f9dbbd16c5420fd8a951398ffb34bc9989',
+  'prototype/mcp-local/integration/identity-core.ts': 'e2515c484705229745b1878bd0a28c426766b52829b63771cf97ecfb7c9cd166',
+  'prototype/mcp-local/homologation/service-client.ts': 'c585d14c0f91c5b44c9ddacf599dd0f1c7672645ed1a73afc867b8c209e9cffb',
+  'prototype/mcp-local/lab/tests/boundaries.node.mjs': '2b2577f4d19d65094786c90d782b8fd4b1444ebd1a5f31867dafaf2df3c9253b',
+  'tests/b4/m21-preservation.node.mjs': 'ac50dfd653f492d75de172ae6508a1b82ad925ba66893e9646c62c7dd38592ee',
+  'prototype/mcp-local/integration/composition.ts': 'd35cf5a51698f2da21ac946c600b5b2d8fc8c4290035cc2f606eaec6fc755fbd',
+  'prototype/mcp-local/integration/identity.ts': 'ec172fa441d05c004ffb943a5d7374bb488204fbda715fd18367599e8ddf539e',
+  'prototype/mcp-local/homologation/ports.ts': '491af00348dd0cab9bd45a98b75e8100611c88510c0724494f367dfd4e0c3822',
+  'prototype/mcp-local/tests/homologation.test.mjs': '131811dd825a0b6da5733c8624c3ece6d3aab50044cf346e014d8e1be6c67d95'
+});
 export const M20_MODIFIED = Object.freeze(['.github/workflows/b3-sqlite.yml',
   'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
 export const M1_ADDED = Object.freeze([
@@ -137,6 +184,9 @@ export function collectSnapshot(root = process.cwd()) {
   let m20Ancestor = false;
   try { git('merge-base','--is-ancestor',M20_BASE,'HEAD'); m20Ancestor = true; } catch { /* Never downgrade a missing checkpoint. */ }
   const m20Base = new Map(names(M20_BASE).map(n=>[n,git('show',`${M20_BASE}:${n}`)]));
+  let i1Ancestor = false;
+  try { git('merge-base','--is-ancestor',I1_BASE,'HEAD'); i1Ancestor = true; } catch { /* No branch-name or historical fallback. */ }
+  const i1Base = new Map(names(I1_BASE).map(n=>[n,git('show',`${I1_BASE}:${n}`)]));
   const files = [...new Set(git('ls-files','-z').toString().split('\0').filter(Boolean)
     .concat(git('ls-files','--others','--exclude-standard','-z').toString().split('\0').filter(Boolean)))];
   const current = new Map(files.map(n=>{
@@ -146,16 +196,19 @@ export function collectSnapshot(root = process.cwd()) {
     must(lstatSync(resolve(root,n)).isFile(),'CANDIDATE_FILE');
     return [n,readFileSync(resolve(root,n))];
   }));
-  return { ancestor, historical, base, current, m1Ancestor, m1Base, m20Ancestor, m20Base };
+  return { ancestor, historical, base, current, m1Ancestor, m1Base, m20Ancestor, m20Base, i1Ancestor, i1Base };
 }
 export function validateSnapshot(s) {
   must(s.ancestor,'BASE_DIVERGED'); must(s.historical.size === 97 && s.base.size === 144,'HISTORICAL_INVENTORY');
-  const allowed = new Set([...s.base.keys(), ...ADDED, ...M1_ADDED]);
+  const allowed = new Set([...s.base.keys(), ...ADDED, ...M1_ADDED, ...I1_ADDED]);
   must(s.current.size === allowed.size && [...allowed].every(n=>s.current.has(n)) && [...s.current.keys()].every(n=>allowed.has(n)),'CANDIDATE_INVENTORY');
   let identical = 0;
   for (const [n,v] of s.historical) if (!EXCEPTIONS.includes(n)) { must(sameBytes(s.current.get(n),v),'HISTORICAL_CHANGED:'+n); identical++; }
   must(identical===94,'HISTORICAL_COUNT');
-  for (const [n,v] of s.base) if (!MODIFIED.includes(n)) must(sameBytes(s.current.get(n),v),'B4_BASE_CHANGED:'+n);
+  for (const [n,v] of s.base) if (!MODIFIED.includes(n)) {
+    if (I1_MODIFIED.includes(n)) must(hash(s.current.get(n))===I1_CONTENT[n],'I1_CONTENT_CHANGED:'+n);
+    else must(sameBytes(s.current.get(n),v),'B4_BASE_CHANGED:'+n);
+  }
   for (const [n,h] of Object.entries(immutable)) must(hash(s.current.get(n))===h,'APPROVED_DEPENDENCY_CHANGED:'+n);
   const expected = JSON.parse(s.historical.get('package.json'));
   Object.assign(expected.devDependencies, {'@cloudflare/vitest-plugin':'1.4.8','@cloudflare/workers-types':'5.20261023.1','wrangler':'4.153.0'});
@@ -175,22 +228,45 @@ export function validateSnapshot(s) {
   must(sameBytes(s.current.get('.github/workflows/b4-mcp-local.yml'),expectedMCPWorkflow(s.m1Base.get('.github/workflows/b4-mcp-local.yml'))),'MCP_WORKFLOW_CHANGE_NOT_ALLOWED');
   let publishedIdentical = 0;
   for (const [n,v] of s.m1Base) if (!M1_MODIFIED.includes(n)) {
+    if (I1_MODIFIED.includes(n)) { must(hash(s.current.get(n))===I1_CONTENT[n],'I1_CONTENT_CHANGED:'+n); continue; }
     must(sameBytes(s.current.get(n),v),'M1_PUBLISHED_CHANGED:'+n); publishedIdentical++;
   }
-  must(publishedIdentical===160,'M1_PUBLISHED_COUNT');
+  must(publishedIdentical===155,'M1_PUBLISHED_COUNT');
   must(s.m20Ancestor,'M20_BASE_DIVERGED');
   must(s.m20Base instanceof Map && s.m20Base.size===172,'M20_BASE_INVENTORY');
   let m20Identical = 0;
   for (const [n,v] of s.m20Base) if (!M20_MODIFIED.includes(n)) {
+    if (I1_MODIFIED.includes(n)) { must(hash(s.current.get(n))===I1_CONTENT[n],'I1_CONTENT_CHANGED:'+n); continue; }
     must(sameBytes(s.current.get(n),v),'M20_PUBLISHED_CHANGED:'+n); m20Identical++;
   }
-  must(m20Identical===169,'M20_PUBLISHED_COUNT');
+  must(m20Identical===163,'M20_PUBLISHED_COUNT');
+  must(s.i1Ancestor,'I1_BASE_DIVERGED');
+  must(s.i1Base instanceof Map && s.i1Base.size===172,'I1_BASE_INVENTORY');
+  const i1Allowed = new Set([...s.i1Base.keys(),...I1_ADDED]);
+  must(s.current.size===178 && [...i1Allowed].every(n=>s.current.has(n))
+    && [...s.current.keys()].every(n=>i1Allowed.has(n)),'I1_INVENTORY');
+  let i1Identical = 0;
+  for (const [n,v] of s.i1Base) if (!I1_MODIFIED.includes(n)) {
+    must(sameBytes(s.current.get(n),v),'I1_PUBLISHED_CHANGED:'+n); i1Identical++;
+  }
+  must(i1Identical===164,'I1_PUBLISHED_COUNT');
+  must(Object.keys(I1_CONTENT).length===13 && [...I1_ADDED,...I1_MODIFIED].filter(n=>n!=='scripts/verify-b4-preservation.mjs')
+    .every(n=>Object.hasOwn(I1_CONTENT,n)),'I1_CONTENT_INVENTORY');
+  for (const [n,h] of Object.entries(I1_CONTENT)) must(hash(s.current.get(n))===h,'I1_CONTENT_CHANGED:'+n);
+  const verifierBytes = s.current.get('scripts/verify-b4-preservation.mjs');
+  const verifierText = Buffer.from(verifierBytes).toString('utf8');
+  const marker = /^const I1_VERIFIER_HASH = '[a-f0-9]{64}';$/m;
+  const normalized = verifierText.replace(marker, "const I1_VERIFIER_HASH = '"+'0'.repeat(64)+"';");
+  must(sameBytes(Buffer.from(verifierText),verifierBytes)
+    && marker.exec(verifierText)?.[0] === "const I1_VERIFIER_HASH = '"+I1_VERIFIER_HASH+"';"
+    && hash(normalized)===I1_VERIFIER_HASH,'I1_CONTENT_CHANGED:scripts/verify-b4-preservation.mjs');
   return { base:B4,historicalBase:B31,historicalFiles:97,byteIdentical:94,exceptions:EXCEPTIONS,
     dependencyFilesPinned:Object.keys(immutable),originalVerifierPreserved:true,activationBlocked:true,
     candidateFiles:s.current.size,allowedAdded:ADDED.length,allowedModified:MODIFIED.length,
     m1Base:M1_BASE,publishedFiles:164,publishedByteIdentical:publishedIdentical,
     authorizedPublishedModifications:M1_MODIFIED,m1Added:M1_ADDED.length,
-    m20Base:M20_BASE,m20PublishedFiles:172,m20ProtectedFiles:m20Identical,m20AuthorizedModifications:M20_MODIFIED };
+    m20Base:M20_BASE,m20PublishedFiles:172,m20ProtectedFiles:m20Identical,m20AuthorizedModifications:M20_MODIFIED,
+    i1Base:I1_BASE,i1PublishedFiles:172,i1ProtectedFiles:i1Identical,i1Added:I1_ADDED.length,i1AuthorizedModifications:I1_MODIFIED,i1qAuthorizedPaths:I1Q_PATHS };
 }
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   try { if(process.argv.length!==2)throw new Error('UNSUPPORTED_ARGUMENTS'); console.log(JSON.stringify(validateSnapshot(collectSnapshot()),null,2)); }

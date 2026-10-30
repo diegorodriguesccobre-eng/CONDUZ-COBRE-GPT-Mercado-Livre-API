@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, renameSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { collectSnapshot, validateSnapshot, expectedSQLiteWorkflow, M1_ADDED, M1_MODIFIED, M1_BASE, B31, M20_BASE, M20_MODIFIED } from '../../../scripts/verify-b4-preservation.mjs';
+import { collectSnapshot, validateSnapshot, expectedSQLiteWorkflow, M1_ADDED, M1_MODIFIED, M1_BASE, B31, M20_BASE, M20_MODIFIED, I1_BASE } from '../../../scripts/verify-b4-preservation.mjs';
 import { verifyInventory } from '../scripts/ci.mjs';
 
 const project = fileURLToPath(new URL('..', import.meta.url));
@@ -32,8 +32,8 @@ const refused = (s, reason) => assert.throws(() => validateSnapshot(s), e =>
 test('M1-01: exactly the eight previously approved names are accepted', () => {
   assert.deepEqual(M1_ADDED, paths); assert.equal(Object.isFrozen(M1_ADDED), true);
   const r = validateSnapshot(complete());
-  assert.equal(r.candidateFiles, 172); assert.equal(r.m1Added, 8);
-  assert.equal(r.publishedByteIdentical, 160); assert.equal(r.byteIdentical, 94);
+  assert.equal(r.candidateFiles, 178); assert.equal(r.m1Added, 8);
+  assert.equal(r.publishedByteIdentical, 155); assert.equal(r.byteIdentical, 94);
   assert.deepEqual(M1_MODIFIED, ['scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/scripts/ci.mjs', '.github/workflows/b3-sqlite.yml', '.github/workflows/b4-mcp-local.yml']);
   assert.equal(Object.isFrozen(M1_MODIFIED), true);
   assert.deepEqual(r.authorizedPublishedModifications, M1_MODIFIED);
@@ -54,7 +54,7 @@ test('M1-01: all 163 other published files are protected, including former B4 ad
   let protectedFiles = 0;
   for (const path of collected.m1Base.keys()) if (path !== 'scripts/verify-b4-preservation.mjs') {
     const s = complete(); s.current.set(path, Buffer.concat([s.current.get(path), Buffer.from('\n')]));
-    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:)/);
+    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|I1_CONTENT_CHANGED:)/);
     protectedFiles++;
   }
   assert.equal(protectedFiles, 163);
@@ -220,7 +220,7 @@ for (const context of contexts.slice(0, 2)) test('M1-02: actual SQLite shell inv
   const result = JSON.parse(execFileSync('bash', ['-eu', '-o', 'pipefail', '-c', shell], {
     cwd: root, env: { ...process.env, B4_PRESERVATION: String(selected(context)) }, stdio: 'pipe', timeout: 15000
   }));
-  assert.equal(result.candidateFiles, 172); assert.equal(result.publishedByteIdentical, 160);
+  assert.equal(result.candidateFiles, 178); assert.equal(result.publishedByteIdentical, 155);
   assert.equal(result.activationBlocked, true);
 });
 test('M1-02: actual SQLite shell preserves B3 selection on the unchanged historical reference', () => {
@@ -256,7 +256,9 @@ function gitFixture(run, { ref = M20_BASE, history = 'full', install = ref === M
     GIT_AUTHOR_DATE: '2001-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2001-01-01T00:00:00Z' };
   const git = (...args) => execFileSync('git', ['--no-optional-locks', ...args], {
     cwd: repo, env: gitEnv, stdio: 'pipe', timeout: 15000 }).toString().trim();
-  const installCandidate = () => { for (const path of M20_MODIFIED) fixtureWrite(repo, path, readFileSync(resolve(root, path))); };
+  // Historical DAG fixtures must use the published f20 epoch, not the uncommitted I1 candidate.
+  const installCandidate = () => { for (const path of M20_MODIFIED) fixtureWrite(repo, path,
+    execFileSync('git', ['--no-replace-objects', 'show', I1_BASE + ':' + path], { cwd: root, stdio: 'pipe' })); };
   try {
     if (history === 'missing-checkpoint') {
       mkdirSync(repo); git('init', '--quiet'); git('fetch', '--quiet', '--no-tags', root, ref);
@@ -309,13 +311,14 @@ test('M2.0: only the three approved modifications are permitted in the 172-file 
   assert.equal(M20_BASE, '014a2a5a49211d31bb9275e236fd2c31c1be93d8');
   assert.deepEqual(M20_MODIFIED, ['.github/workflows/b3-sqlite.yml', 'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
   assert.equal(Object.isFrozen(M20_MODIFIED), true);
-  const report = validateSnapshot(complete()); assert.equal(report.m20PublishedFiles, 172); assert.equal(report.m20ProtectedFiles, 169);
+  const report = validateSnapshot(complete()); assert.equal(report.m20PublishedFiles, 172); assert.equal(report.m20ProtectedFiles, 163);
+  assert.equal(report.i1ProtectedFiles, 164);
 });
 test('M2.0: every other 169 checkpoint files still rejects an extra byte', () => {
   let count = 0;
   for (const path of collected.m20Base.keys()) if (!M20_MODIFIED.includes(path)) {
     const s = complete(); s.current.set(path, Buffer.concat([s.current.get(path), Buffer.from('\n')]));
-    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:)/); count++;
+    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:|I1_CONTENT_CHANGED:)/); count++;
   }
   assert.equal(count, 169);
 });
@@ -1051,8 +1054,30 @@ test('M1 public build exports only the handler and excludes private fixtures and
   assert.equal(report.deployAuthorized, false);
   assert.ok(report.publicInputs.every(x => !x.includes('tests/fixtures/') && !x.includes('scripts/') && !x.endsWith('recovery/storage.ts')));
 });
+// Explicitly enrolled through this already-required CI test file. No discovery,
+// workflow mutation, retry or additional privilege is involved.
+const i1qCIEvidence = [];
+const i1qSuites = Object.freeze([
+  Object.freeze({ file: 'lab/tests/boundaries.node.mjs', expectedTests: 55 }),
+  Object.freeze({ file: '../../tests/b4/m21-preservation.node.mjs', expectedTests: 45 })
+]);
+for (const suite of i1qSuites) test('I1-Q CI runs all tests in ' + suite.file, { timeout: 45000 }, () => {
+  const directory=resolve(project,'work/i1q-ci'); mkdirSync(directory,{recursive:true});
+  const childEnv={...process.env}; delete childEnv.NODE_TEST_CONTEXT;
+  const started=performance.now();
+  const stdout=execFileSync(process.execPath, ['--test', '--test-reporter=tap', suite.file], {
+    cwd:project, env:childEnv, stdio:['ignore','pipe','pipe'], timeout:40000, maxBuffer:16*1024*1024
+  }).toString();
+  writeFileSync(resolve(directory,suite.file.includes('boundaries')?'boundaries.tap':'preservation.tap'),stdout);
+  const count=name=>{ const matches=[...stdout.matchAll(new RegExp('^# '+name+' (\\d+)$','gm'))];
+    assert.equal(matches.length,1,'Exactly one child summary is required');return Number(matches[0][1]); };
+  assert.equal(count('tests'),suite.expectedTests); assert.equal(count('pass'),suite.expectedTests);
+  for (const name of ['fail','cancelled','skipped','todo']) assert.equal(count(name),0);
+  const row={file:suite.file,tests:count('tests'),pass:count('pass'),exit:0,milliseconds:Math.round(performance.now()-started)};
+  i1qCIEvidence.push(row); console.log('I1Q_CI_SUITE '+JSON.stringify(row));
+});
 after(() => writeFileSync(resolve(project, 'work/homologation/test-evidence.json'), JSON.stringify({
   syntheticOnly: true, productionReady: false, administrativeMfaProven: false, realQuorumProven: false,
   independentReferenceProven: false, completedScenarios: evidence, portEvidence, ciContexts: ciContextEvidence, cancellationEvidence,
-  preservationRouting: m20RoutingEvidence
+  preservationRouting: m20RoutingEvidence, i1qCIEvidence
 }, null, 2) + '\n'));
