@@ -1,14 +1,12 @@
 import { z } from 'zod';
 import type { JSONWebKeySet } from 'jose';
-import { bounded, type Command } from '../integration/contracts';
+import type { Command } from '../integration/contracts';
+import { createReadServiceClient, PortUnavailable } from './service-client';
+export { PortUnavailable, PORT_DEADLINE_MS, EXECUTION_PORT_DEADLINE_MS } from './service-client';
 import { materialSchema, type Materials, type Account } from '../vault/model';
 import type { Binding } from '../integration/registry';
 
 export const LOCAL_MODE = 'B4_M1_FICTIONAL_LOCAL_ONLY';
-export const PORT_DEADLINE_MS = 1000;
-// SQLite/crypto work can exceed the metadata budget. This bounded local transport
-// budget does not extend the inherited command deadline or its final revalidation.
-export const EXECUTION_PORT_DEADLINE_MS = 3000;
 type Service = Pick<Fetcher, 'fetch'>;
 export interface HomologationBindings {
   HML_MODE: string;
@@ -44,9 +42,6 @@ export interface HomologationPorts {
     assertPrepared(account: Account, prepared: unknown): Promise<unknown>;
   };
 }
-export class PortUnavailable extends Error {
-  constructor() { super('INTEGRATION_DEPENDENCY_UNAVAILABLE'); this.name = 'PortUnavailable'; }
-}
 const snapshotSchema = z.strictObject({
   revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER - 1),
   deadlineMs: z.number().int().min(100).max(15000)
@@ -65,46 +60,7 @@ export function createBoundPorts(input: HomologationBindings): HomologationPorts
   const services = { identity: input.HML_IDENTITY, registry: input.HML_REGISTRY,
     reference: input.HML_REFERENCE, vaults: input.HML_VAULTS };
   if (Object.values(services).some(s => !s || typeof s.fetch !== 'function')) throw new PortUnavailable();
-  // Node/Undici follows the parent signal through the Request's dependent controller.
-  // Own each Request until abort/cleanup; a consumer may retain only its signal.
-  const activeRequests = new Set<Request>();
-  async function call(port: keyof typeof services, method: string, args: unknown): Promise<unknown> {
-    const deadlineMs = port === 'vaults' || (port === 'reference' && method === 'permissions')
-      ? EXECUTION_PORT_DEADLINE_MS : PORT_DEADLINE_MS;
-    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
-    let response: Response | undefined; let request: Request | undefined;
-    try {
-      const started = Date.now();
-      const operation = Promise.resolve().then(async () => {
-        request = new Request('https://m1-ports.invalid/' + port + '/' + method, {
-          method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ args }), signal: controller.signal
-        });
-        activeRequests.add(request);
-        const value = await services[port].fetch(request);
-        if (controller.signal.aborted) { void value.body?.cancel().catch(() => {}); throw new PortUnavailable(); }
-        response = value; return value;
-      });
-      response = await Promise.race([operation, new Promise<never>((_, fail) => {
-        timer = setTimeout(() => { controller.abort(); fail(new PortUnavailable()); }, deadlineMs);
-      })]);
-      if (!response.ok || !response.headers.get('Content-Type')?.startsWith('application/json')) throw new PortUnavailable();
-      const bytes = await bounded(response.body, Math.max(1, deadlineMs - (Date.now() - started)), controller.signal);
-      const envelope = z.strictObject({ ok: z.literal(true), value: z.unknown() }).parse(JSON.parse(new TextDecoder().decode(bytes)));
-      return envelope.value;
-    } catch { throw new PortUnavailable(); }
-    finally {
-      if (timer !== undefined) clearTimeout(timer);
-      try {
-        // Keep the dependent controller alive while cancellation is propagated.
-        controller.abort();
-        if (response?.body && !response.body.locked) void response.body.cancel().catch(() => {});
-      } finally {
-        if (request) activeRequests.delete(request);
-        request = undefined;
-      }
-    }
-  }
+  const call = createReadServiceClient(services);
   const ports: HomologationPorts = {
     mode: LOCAL_MODE, jwks, material,
     identity: Object.freeze({
