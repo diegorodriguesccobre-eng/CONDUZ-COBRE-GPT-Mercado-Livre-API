@@ -25,7 +25,16 @@ export const I1_MODIFIED = Object.freeze([
   'prototype/mcp-local/tests/homologation.test.mjs',
   'prototype/mcp-local/recovery/model.ts',
   'prototype/mcp-local/integration/guardian-adapter.ts',
-  'prototype/mcp-local/src/persistent-model.ts'
+  'prototype/mcp-local/src/persistent-model.ts',
+  'prototype/mcp-local/scripts/ci.mjs',
+  '.github/workflows/b4-mcp-local.yml'
+]);
+export const I1_CI_PATHS = Object.freeze([
+  '.github/workflows/b4-mcp-local.yml',
+  'prototype/mcp-local/scripts/ci.mjs',
+  'scripts/verify-b4-preservation.mjs',
+  'prototype/mcp-local/tests/homologation.test.mjs',
+  'tests/b4/m21-preservation.node.mjs'
 ]);
 export const I1Q_PATHS = Object.freeze([
   'prototype/mcp-local/recovery/core.ts',
@@ -39,21 +48,23 @@ export const I1Q_PATHS = Object.freeze([
 ]);
 // Closed content authorization, not a path-only exception. The verifier digest is
 // normalized solely at its own 64-hex declaration to avoid a recursive self-hash.
-const I1_VERIFIER_HASH = 'a98fac74d975a1189a7ffb9ab2cfb6a5278e80ac9ed532f22fc56225b923963e';
+const I1_VERIFIER_HASH = '3ecf8f29f7c71438ef84aab9717adb43d7973250d7e2afe583d780cda0b0902e';
 const I1_CONTENT = Object.freeze({
+  'prototype/mcp-local/scripts/ci.mjs': '2c8ae2bce7a02608f924c57f77af9240e836f83a599addfb716e4e03de7dc712',
+  '.github/workflows/b4-mcp-local.yml': '3af89bf098982f127eb35312de8bf35b363c92b09fb5058fddc32bb0cb5f9e33',
   'prototype/mcp-local/recovery/core.ts': 'cab56a3ff02268700c97fbbdb7bf7b6ae6c4735a5d2e5114dfa454ac12244fc0',
   'prototype/mcp-local/recovery/model.ts': '3a5f0abdc38f07e8ae2d9cfda69b66f44911f489151e0ef242030a77fd3f5cfc',
   'prototype/mcp-local/integration/guardian-adapter.ts': '262019868c9502d5e1a29155499811ee32bdcbafd91ea402a9922b9662ba6c55',
   'prototype/mcp-local/src/persistent-model.ts': 'f7e10d8fe5b3af3fca1d666ed170d353bf62c793859cb348992cff05d053566c',
   'prototype/mcp-local/integration/profile.ts': '0356eb2c14dfd2ee79d0a221292397f9dbbd16c5420fd8a951398ffb34bc9989',
   'prototype/mcp-local/integration/identity-core.ts': 'e2515c484705229745b1878bd0a28c426766b52829b63771cf97ecfb7c9cd166',
-  'prototype/mcp-local/homologation/service-client.ts': 'c585d14c0f91c5b44c9ddacf599dd0f1c7672645ed1a73afc867b8c209e9cffb',
+  'prototype/mcp-local/homologation/service-client.ts': '01692aba26c650feac59ffcbe685f75fa59780d2c101abb228514bdb7c0260df',
   'prototype/mcp-local/lab/tests/boundaries.node.mjs': '2b2577f4d19d65094786c90d782b8fd4b1444ebd1a5f31867dafaf2df3c9253b',
-  'tests/b4/m21-preservation.node.mjs': 'ac50dfd653f492d75de172ae6508a1b82ad925ba66893e9646c62c7dd38592ee',
+  'tests/b4/m21-preservation.node.mjs': '3eb19072da24cf389581920412a8efb4fe91ced425d57684a8849afbfe225740',
   'prototype/mcp-local/integration/composition.ts': 'd35cf5a51698f2da21ac946c600b5b2d8fc8c4290035cc2f606eaec6fc755fbd',
   'prototype/mcp-local/integration/identity.ts': 'ec172fa441d05c004ffb943a5d7374bb488204fbda715fd18367599e8ddf539e',
   'prototype/mcp-local/homologation/ports.ts': '491af00348dd0cab9bd45a98b75e8100611c88510c0724494f367dfd4e0c3822',
-  'prototype/mcp-local/tests/homologation.test.mjs': '131811dd825a0b6da5733c8624c3ece6d3aab50044cf346e014d8e1be6c67d95'
+  'prototype/mcp-local/tests/homologation.test.mjs': '0b3256458822052e65a97d01da4b40aea6e1b055e991590ebeee40b4d0802727'
 });
 export const M20_MODIFIED = Object.freeze(['.github/workflows/b3-sqlite.yml',
   'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
@@ -147,8 +158,8 @@ export function expectedSQLiteWorkflow(original) {
   // A callback preserves literal shell $ sequences instead of replacement-string metacharacters.
   return original.replace(before, () => sqliteStep);
 }
-// M1-02 permits only these literal additions to the published dispatcher. The
-// other commands, runtime pins, inventory checks and workflow checks stay intact.
+// Historical M1 dispatcher transformation retained as a baseline proof. The
+// current split dispatcher additionally requires its exact approved content pin.
 export function expectedCIDispatcher(original) {
   original = Buffer.from(original).toString('utf8');
   const before = " integration:{files:['integration.test.mjs','query-classification.test.mjs'],typecheck:'tsconfig.integration.json',commands:[['node','--test','tests/integration.test.mjs','tests/query-classification.test.mjs']]},\n";
@@ -162,33 +173,86 @@ export function expectedCIDispatcher(original) {
 export function expectedMCPWorkflow(original) {
   original = Buffer.from(original).toString('utf8');
   const before = "        timeout-minutes: ${{ matrix.suite == 'recovery' && 5 || 3 }}\n";
-  const after = "        timeout-minutes: ${{ (matrix.suite == 'recovery' || matrix.suite == 'integration') && 5 || 3 }}\n";
-  if (original.split(before).length !== 2) throw new PreservationFailure('MCP_WORKFLOW_BASE_UNEXPECTED');
-  return original.replace(before, after);
+  const after = "        timeout-minutes: ${{ (matrix.suite == 'recovery' || matrix.suite == 'integration' || matrix.suite == 'homologation') && 5 || 3 }}\n";
+  const oldMatrix = '        suite: [mcp, persistence, recovery, vault, integration, buffering, regression]\n';
+  const newMatrix = '        suite: [mcp, persistence, recovery, vault, integration, homologation, buffering, regression]\n';
+  if (original.split(before).length !== 2 || original.split(oldMatrix).length !== 2) throw new PreservationFailure('MCP_WORKFLOW_BASE_UNEXPECTED');
+  return original.replace(before, after).replace(oldMatrix, newMatrix);
 }
 const sameBytes = (a,b) => Buffer.from(a).equals(Buffer.from(b));
 const hash = v => createHash('sha256').update(v).digest('hex');
 const canonical = v => Array.isArray(v) ? '['+v.map(canonical).join(',')+']' : v && typeof v === 'object'
   ? '{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}' : JSON.stringify(v);
 const must = (v, code) => { if (!v) throw new PreservationFailure(code); };
+// Fresh, per-collection reads of the five fixed Git trees. Only immutable blob
+// OIDs are deduplicated inside this call; no state or decision is cached.
+export function readGitSnapshots(runGit) {
+  const refs = [B31, B4, M1_BASE, M20_BASE, I1_BASE], trees = new Map(), oids = new Set();
+  const read = (args, input) => {
+    let value;
+    try { value = runGit(args, input); } catch { throw new PreservationFailure('GIT_READ_FAILED'); }
+    must(Buffer.isBuffer(value), 'GIT_OUTPUT_NOT_BUFFER'); return value;
+  };
+  for (const ref of refs) {
+    const raw = read(['ls-tree', '-r', '-z', '--full-tree', ref]);
+    const text = raw.toString('utf8');
+    must(Buffer.from(text, 'utf8').equals(raw), 'GIT_TREE_ENCODING');
+    must(raw.length === 0 || raw[raw.length - 1] === 0, 'GIT_TREE_TRUNCATED');
+    const entries = new Map();
+    for (const record of text.split('\0').slice(0, -1)) {
+      const tab = record.indexOf('\t'), header = tab < 0 ? '' : record.slice(0, tab);
+      const match = /^(100644|100755) blob ([a-f0-9]{40})$/.exec(header);
+      must(match, 'GIT_TREE_ENTRY');
+      const name = record.slice(tab + 1), parts = name.split('/');
+      must(name && !name.startsWith('/') && !name.includes('\\') && parts.every(p => p && p !== '.' && p !== '..')
+        && !entries.has(name), 'GIT_TREE_PATH');
+      entries.set(name, match[2]); oids.add(match[2]);
+    }
+    trees.set(ref, entries);
+  }
+  const objects = new Map(), requested = [...oids];
+  if (requested.length) {
+    const raw = read(['cat-file', '--batch'], Buffer.from(requested.join('\n') + '\n', 'ascii'));
+    let offset = 0;
+    for (const oid of requested) {
+      const end = raw.indexOf(10, offset);
+      must(end >= offset && end - offset <= 128, 'GIT_BATCH_HEADER');
+      const header = raw.toString('latin1', offset, end);
+      must(!/^[a-f0-9]{40} missing$/.test(header), 'GIT_OBJECT_MISSING');
+      const match = /^([a-f0-9]{40}) blob (0|[1-9][0-9]*)$/.exec(header);
+      must(match, 'GIT_BATCH_HEADER'); must(match[1] === oid, 'GIT_BATCH_OBJECT_MISMATCH');
+      const size = Number(match[2]);
+      must(Number.isSafeInteger(size) && size <= 16*1024*1024, 'GIT_OBJECT_SIZE');
+      offset = end + 1;
+      must(offset + size < raw.length, 'GIT_BATCH_TRUNCATED');
+      const bytes = raw.subarray(offset, offset + size); offset += size;
+      must(raw[offset] === 10, 'GIT_BATCH_DELIMITER'); offset++;
+      must(createHash('sha1').update('blob ' + size + '\0').update(bytes).digest('hex') === oid, 'GIT_OBJECT_INTEGRITY');
+      objects.set(oid, bytes);
+    }
+    must(offset === raw.length, 'GIT_BATCH_TRAILING');
+  }
+  return new Map([...trees].map(([ref, entries]) => [ref,
+    new Map([...entries].map(([name, oid]) => [name, Buffer.from(objects.get(oid))]))]));
+}
 export function collectSnapshot(root = process.cwd()) {
-  const git = (...args) => execFileSync('git', ['--no-optional-locks', '--no-replace-objects', ...args], { cwd: root, maxBuffer: 16*1024*1024, stdio:['ignore','pipe','pipe'] });
-  const names = ref => git('ls-tree','-r','--name-only','-z',ref).toString().split('\0').filter(Boolean);
+  const git = (args, input) => execFileSync('git', ['--no-optional-locks', '--no-replace-objects', ...args],
+    { cwd: root, input, maxBuffer: 16*1024*1024, stdio:[input === undefined ? 'ignore' : 'pipe','pipe','pipe'] });
   let ancestor = false;
-  try { git('merge-base','--is-ancestor',B4,'HEAD'); ancestor = true; } catch { /* Absence/divergence never passes. */ }
-  const historical = new Map(names(B31).map(n=>[n,git('show',`${B31}:${n}`)]));
-  const base = new Map(names(B4).map(n=>[n,git('show',`${B4}:${n}`)]));
+  try { git(['merge-base','--is-ancestor',B4,'HEAD']); ancestor = true; } catch { /* Absence/divergence never passes. */ }
+  const snapshots = readGitSnapshots(git);
+  const historical = snapshots.get(B31), base = snapshots.get(B4);
   let m1Ancestor = false;
-  try { git('merge-base','--is-ancestor',M1_BASE,'HEAD'); m1Ancestor = true; } catch { /* Fail closed. */ }
-  const m1Base = new Map(names(M1_BASE).map(n=>[n,git('show',`${M1_BASE}:${n}`)]));
+  try { git(['merge-base','--is-ancestor',M1_BASE,'HEAD']); m1Ancestor = true; } catch { /* Fail closed. */ }
+  const m1Base = snapshots.get(M1_BASE);
   let m20Ancestor = false;
-  try { git('merge-base','--is-ancestor',M20_BASE,'HEAD'); m20Ancestor = true; } catch { /* Never downgrade a missing checkpoint. */ }
-  const m20Base = new Map(names(M20_BASE).map(n=>[n,git('show',`${M20_BASE}:${n}`)]));
+  try { git(['merge-base','--is-ancestor',M20_BASE,'HEAD']); m20Ancestor = true; } catch { /* Never downgrade a missing checkpoint. */ }
+  const m20Base = snapshots.get(M20_BASE);
   let i1Ancestor = false;
-  try { git('merge-base','--is-ancestor',I1_BASE,'HEAD'); i1Ancestor = true; } catch { /* No branch-name or historical fallback. */ }
-  const i1Base = new Map(names(I1_BASE).map(n=>[n,git('show',`${I1_BASE}:${n}`)]));
-  const files = [...new Set(git('ls-files','-z').toString().split('\0').filter(Boolean)
-    .concat(git('ls-files','--others','--exclude-standard','-z').toString().split('\0').filter(Boolean)))];
+  try { git(['merge-base','--is-ancestor',I1_BASE,'HEAD']); i1Ancestor = true; } catch { /* No branch-name or historical fallback. */ }
+  const i1Base = snapshots.get(I1_BASE);
+  const files = [...new Set(git(['ls-files','-z']).toString().split('\0').filter(Boolean)
+    .concat(git(['ls-files','--others','--exclude-standard','-z']).toString().split('\0').filter(Boolean)))];
   const current = new Map(files.map(n=>{
     const parts = n.split('/');
     must(!n.startsWith('/') && !n.includes('\\') && parts.every(p=>p && p!=='.' && p!=='..'),'CANDIDATE_PATH');
@@ -224,7 +288,10 @@ export function validateSnapshot(s) {
   must(['liveTransportEnabled','productionOAuthEnabled','officialMercadoLivreContractsValidated','accessPolicyConfigured','identityProviderMfaVerified','sellerIdentityValidatedLive','realCredentialsConfigured','deploymentAuthorized'].every(k=>readiness[k]===false),'READINESS_CHANGED');
   must(s.m1Ancestor,'M1_BASE_DIVERGED');
   must(s.m1Base instanceof Map && s.m1Base.size===164,'M1_BASE_INVENTORY');
-  must(sameBytes(s.current.get('prototype/mcp-local/scripts/ci.mjs'),expectedCIDispatcher(s.m1Base.get('prototype/mcp-local/scripts/ci.mjs'))),'CI_CHANGE_NOT_ALLOWED');
+  const ciPath = 'prototype/mcp-local/scripts/ci.mjs';
+  must(s.i1Base instanceof Map && Buffer.isBuffer(s.i1Base.get(ciPath))
+    && sameBytes(s.i1Base.get(ciPath),expectedCIDispatcher(s.m1Base.get(ciPath)))
+    && hash(s.current.get(ciPath))===I1_CONTENT[ciPath],'CI_CHANGE_NOT_ALLOWED');
   must(sameBytes(s.current.get('.github/workflows/b4-mcp-local.yml'),expectedMCPWorkflow(s.m1Base.get('.github/workflows/b4-mcp-local.yml'))),'MCP_WORKFLOW_CHANGE_NOT_ALLOWED');
   let publishedIdentical = 0;
   for (const [n,v] of s.m1Base) if (!M1_MODIFIED.includes(n)) {
@@ -239,7 +306,7 @@ export function validateSnapshot(s) {
     if (I1_MODIFIED.includes(n)) { must(hash(s.current.get(n))===I1_CONTENT[n],'I1_CONTENT_CHANGED:'+n); continue; }
     must(sameBytes(s.current.get(n),v),'M20_PUBLISHED_CHANGED:'+n); m20Identical++;
   }
-  must(m20Identical===163,'M20_PUBLISHED_COUNT');
+  must(m20Identical===161,'M20_PUBLISHED_COUNT');
   must(s.i1Ancestor,'I1_BASE_DIVERGED');
   must(s.i1Base instanceof Map && s.i1Base.size===172,'I1_BASE_INVENTORY');
   const i1Allowed = new Set([...s.i1Base.keys(),...I1_ADDED]);
@@ -249,8 +316,8 @@ export function validateSnapshot(s) {
   for (const [n,v] of s.i1Base) if (!I1_MODIFIED.includes(n)) {
     must(sameBytes(s.current.get(n),v),'I1_PUBLISHED_CHANGED:'+n); i1Identical++;
   }
-  must(i1Identical===164,'I1_PUBLISHED_COUNT');
-  must(Object.keys(I1_CONTENT).length===13 && [...I1_ADDED,...I1_MODIFIED].filter(n=>n!=='scripts/verify-b4-preservation.mjs')
+  must(i1Identical===162,'I1_PUBLISHED_COUNT');
+  must(Object.keys(I1_CONTENT).length===15 && [...I1_ADDED,...I1_MODIFIED].filter(n=>n!=='scripts/verify-b4-preservation.mjs')
     .every(n=>Object.hasOwn(I1_CONTENT,n)),'I1_CONTENT_INVENTORY');
   for (const [n,h] of Object.entries(I1_CONTENT)) must(hash(s.current.get(n))===h,'I1_CONTENT_CHANGED:'+n);
   const verifierBytes = s.current.get('scripts/verify-b4-preservation.mjs');
@@ -266,7 +333,7 @@ export function validateSnapshot(s) {
     m1Base:M1_BASE,publishedFiles:164,publishedByteIdentical:publishedIdentical,
     authorizedPublishedModifications:M1_MODIFIED,m1Added:M1_ADDED.length,
     m20Base:M20_BASE,m20PublishedFiles:172,m20ProtectedFiles:m20Identical,m20AuthorizedModifications:M20_MODIFIED,
-    i1Base:I1_BASE,i1PublishedFiles:172,i1ProtectedFiles:i1Identical,i1Added:I1_ADDED.length,i1AuthorizedModifications:I1_MODIFIED,i1qAuthorizedPaths:I1Q_PATHS };
+    i1Base:I1_BASE,i1PublishedFiles:172,i1ProtectedFiles:i1Identical,i1Added:I1_ADDED.length,i1AuthorizedModifications:I1_MODIFIED,i1qAuthorizedPaths:I1Q_PATHS,i1ciAuthorizedPaths:I1_CI_PATHS };
 }
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   try { if(process.argv.length!==2)throw new Error('UNSUPPORTED_ARGUMENTS'); console.log(JSON.stringify(validateSnapshot(collectSnapshot()),null,2)); }

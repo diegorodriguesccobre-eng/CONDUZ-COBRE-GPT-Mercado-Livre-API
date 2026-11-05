@@ -5,7 +5,7 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSyn
 import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectSnapshot, validateSnapshot, I1_BASE, I1_ADDED, I1_MODIFIED, I1Q_PATHS } from '../../scripts/verify-b4-preservation.mjs';
+import { collectSnapshot, validateSnapshot, I1_BASE, I1_ADDED, I1_MODIFIED, I1Q_PATHS, I1_CI_PATHS } from '../../scripts/verify-b4-preservation.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const original = collectSnapshot(root), copy = () => ({ ...original, current: new Map(original.current), i1Base: new Map(original.i1Base) });
@@ -14,27 +14,30 @@ const added = ['prototype/mcp-local/integration/profile.ts','prototype/mcp-local
   'prototype/mcp-local/homologation/service-client.ts','prototype/mcp-local/lab/tests/boundaries.node.mjs','tests/b4/m21-preservation.node.mjs','prototype/mcp-local/recovery/core.ts'];
 const modified = ['prototype/mcp-local/integration/composition.ts','prototype/mcp-local/integration/identity.ts',
   'prototype/mcp-local/homologation/ports.ts','scripts/verify-b4-preservation.mjs','prototype/mcp-local/tests/homologation.test.mjs','prototype/mcp-local/recovery/model.ts',
-  'prototype/mcp-local/integration/guardian-adapter.ts','prototype/mcp-local/src/persistent-model.ts'];
+  'prototype/mcp-local/integration/guardian-adapter.ts','prototype/mcp-local/src/persistent-model.ts',
+  'prototype/mcp-local/scripts/ci.mjs','.github/workflows/b4-mcp-local.yml'];
 const refused = (snapshot, pattern) => assert.throws(() => validateSnapshot(snapshot), error => error instanceof Error
   && error.constructor.name === 'PreservationFailure' && pattern.test(error.message));
 
-test('I1 preservation accepts only six additions/eight exact transformations at the fixed main checkpoint', () => {
+test('I1 preservation accepts only six additions/ten exact transformations at the fixed main checkpoint', () => {
   assert.equal(I1_BASE, 'f20cf44ccf401080f28ff4bb068e27d436d08f66');
   assert.deepEqual(I1_ADDED, added); assert.deepEqual(I1_MODIFIED, modified);
   assert.ok(Object.isFrozen(I1_ADDED) && Object.isFrozen(I1_MODIFIED));
   const r = validateSnapshot(copy());
-  assert.equal(r.candidateFiles, 178); assert.equal(r.i1ProtectedFiles, 164); assert.equal(r.i1Added, 6);
+  assert.equal(r.candidateFiles, 178); assert.equal(r.i1ProtectedFiles, 162); assert.equal(r.i1Added, 6);
   assert.equal(r.byteIdentical, 94); assert.equal(r.activationBlocked, true); assert.equal(r.originalVerifierPreserved, true);
   assert.deepEqual(r.exceptions, ['package.json','package-lock.json','.github/workflows/b3-sqlite.yml']);
 });
 for (const path of [...added,...modified]) {
   test('I1 exact content hash refuses an extra byte: ' + path, () => {
     const s = copy(); s.current.set(path, Buffer.concat([s.current.get(path), Buffer.from('\n')]));
-    refused(s, /^I1_CONTENT_CHANGED:/);
+    const code = path === 'prototype/mcp-local/scripts/ci.mjs' ? /^CI_CHANGE_NOT_ALLOWED$/
+      : path === '.github/workflows/b4-mcp-local.yml' ? /^MCP_WORKFLOW_CHANGE_NOT_ALLOWED$/ : /^I1_CONTENT_CHANGED:/;
+    refused(s, code);
   });
   test('I1 required file cannot be missing: ' + path, () => { const s = copy(); s.current.delete(path); refused(s, /^CANDIDATE_INVENTORY$/); });
 }
-test('I1 all other 164 main files remain byte-for-byte protected', () => {
+test('I1 all other 162 main files remain byte-for-byte protected', () => {
   let count = 0;
   for (const [path, bytes] of original.i1Base) if (!modified.includes(path)) {
     assert.deepEqual(original.current.get(path), bytes);
@@ -42,7 +45,7 @@ test('I1 all other 164 main files remain byte-for-byte protected', () => {
     refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:|I1_PUBLISHED_CHANGED:)/);
     count++;
   }
-  assert.equal(count, 164);
+  assert.equal(count, 162);
 });
 for (const path of ['private.zip','prototype/mcp-local/lab/extra.ts','prototype/mcp-local/lab/tests/unapproved.node.mjs',
   '../profile.ts','/tmp/profile.ts','prototype\\mcp-local\\integration\\profile.ts','prototype/mcp-local/lab/../profile.ts'])
@@ -94,6 +97,30 @@ test('I1-Q scope contains exactly the eight separately authorized paths', () => 
     'prototype/mcp-local/lab/tests/boundaries.node.mjs','scripts/verify-b4-preservation.mjs',
     'tests/b4/m21-preservation.node.mjs','prototype/mcp-local/tests/homologation.test.mjs']);
   assert.ok(Object.isFrozen(I1Q_PATHS)); assert.equal(new Set(I1Q_PATHS).size, 8);
+});
+test('I1 CI separation authorizes only the five named paths and no fourth historical exception', () => {
+  assert.deepEqual(I1_CI_PATHS, ['.github/workflows/b4-mcp-local.yml','prototype/mcp-local/scripts/ci.mjs',
+    'scripts/verify-b4-preservation.mjs','prototype/mcp-local/tests/homologation.test.mjs','tests/b4/m21-preservation.node.mjs']);
+  assert.ok(Object.isFrozen(I1_CI_PATHS)); assert.equal(new Set(I1_CI_PATHS).size, 5);
+  assert.deepEqual(validateSnapshot(copy()).i1ciAuthorizedPaths, I1_CI_PATHS);
+  const s = copy(); s.current.set('.github/workflows/ci.yml', Buffer.from('UNAPPROVED_CI_CHANGE'));
+  refused(s, /^HISTORICAL_CHANGED:\.github\/workflows\/ci\.yml$/);
+});
+test('I1 private diagnostics permit only the four named files while CI and dependencies remain pinned', () => {
+  const diagnosticPaths=['prototype/mcp-local/homologation/service-client.ts','prototype/mcp-local/tests/homologation.test.mjs',
+    'scripts/verify-b4-preservation.mjs','tests/b4/m21-preservation.node.mjs'];
+  const path=diagnosticPaths[0];
+  for(const leaked of ['export const leakedDiagnostics = privateDiagnostics;','console.log(privateDiagnostics);']){
+    const s=copy();s.current.set(path,Buffer.concat([s.current.get(path),Buffer.from('\n'+leaked+'\n')]));refused(s,/^I1_CONTENT_CHANGED:/);
+  }
+  for (const path of ['prototype/mcp-local/scripts/ci.mjs','.github/workflows/b4-mcp-local.yml',
+    'package.json','package-lock.json','prototype/mcp-local/package.json','prototype/mcp-local/package-lock.json']) {
+    assert.ok(!diagnosticPaths.includes(path));
+    const ciPins={'prototype/mcp-local/scripts/ci.mjs':'2c8ae2bce7a02608f924c57f77af9240e836f83a599addfb716e4e03de7dc712',
+      '.github/workflows/b4-mcp-local.yml':'3af89bf098982f127eb35312de8bf35b363c92b09fb5058fddc32bb0cb5f9e33'};
+    if(Object.hasOwn(ciPins,path))assert.equal(sha(original.current.get(path)),ciPins[path]);
+    else assert.deepEqual(original.current.get(path),original.i1Base.get(path));
+  }
 });
 for (const [name, mutate] of [
   ['remove boundaries invocation', text => text.replace("file: 'lab/tests/boundaries.node.mjs'", "file: 'lab/tests/omitted.node.mjs'")],

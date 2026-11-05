@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [mcp, persistence, recovery, vault, integration, buffering, regression]
+        suite: [mcp, persistence, recovery, vault, integration, homologation, buffering, regression]
     env:
       CI: 'true'
       WRANGLER_SEND_METRICS: 'false'
@@ -51,7 +51,7 @@ jobs:
         timeout-minutes: 1
         run: npm run build:local
       - name: Execute the assigned synthetic suite and typecheck
-        timeout-minutes: ${{ (matrix.suite == 'recovery' || matrix.suite == 'integration') && 5 || 3 }}
+        timeout-minutes: ${{ (matrix.suite == 'recovery' || matrix.suite == 'integration' || matrix.suite == 'homologation') && 5 || 3 }}
         run: node scripts/ci.mjs run "${{ matrix.suite }}"
       - name: Demonstrate synthetic MCP
         if: matrix.suite == 'mcp'
