@@ -39,7 +39,12 @@ export class VerifiedIdentityHandles {
         return reject('INTEGRATION_IDENTITY_DENIED');
       const principal = await this.verify(record.token);
       if (principal.subject !== v.subject || principal.expiresAt !== v.expiresAt) return reject('INTEGRATION_IDENTITY_DENIED');
-      if (consume) this.handles.delete(v.handle);
+      if (consume) {
+        // Verification may yield to another consumer or cancel. Check ownership
+        // and remove synchronously so only one pending consumer can succeed.
+        if (this.handles.get(v.handle) !== record) return reject('INTEGRATION_IDENTITY_DENIED');
+        this.handles.delete(v.handle);
+      }
       return { ok: true as const, principal };
     } catch (error) { return { ok: false as const, code: errorCode(error, 'INTEGRATION_IDENTITY_DENIED') }; }
   }

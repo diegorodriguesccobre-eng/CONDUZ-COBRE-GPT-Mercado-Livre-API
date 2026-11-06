@@ -124,6 +124,93 @@ for (const cause of ['ECONNRESET', 'ETIMEDOUT', 'UNAVAILABLE']) test('I1 handle 
   assert.equal(h.pendingHandles, 0);
 });
 
+function deferredIdentityVerification() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+async function controlledIdentityHandles() {
+  const now = 1800000000000;
+  const verified = Object.freeze({ subject: 'a'.repeat(43), role: 'viewer', expiresAt: now + 60000 });
+  const otherPrincipal = Object.freeze({ ...verified, subject: 'c'.repeat(43) });
+  const gates = [0, 1].map(() => ({ entered: deferredIdentityVerification(), release: deferredIdentityVerification() }));
+  const events = []; let controlled = false, calls = 0;
+  const h = new VerifiedIdentityHandles(async value => {
+    if (value === 'SYNTHETIC_OTHER_ASSERTION') return otherPrincipal;
+    assert.equal(value, assertion);
+    if (!controlled) return verified;
+    const index = calls++; assert.ok(index < gates.length, 'Unexpected verifier invocation');
+    events.push('verify-enter:' + index); gates[index].entered.resolve();
+    await gates[index].release.promise;
+    events.push('verify-return:' + index); return verified;
+  }, () => now);
+  const issued = await h.issue(input);
+  const other = await h.issue({ assertion: 'SYNTHETIC_OTHER_ASSERTION', commandDigest: 'd'.repeat(43) });
+  assert.equal(issued.ok, true); assert.equal(other.ok, true);
+  assert.notEqual(issued.handle, other.handle); assert.equal(h.pendingHandles, 2);
+  return { h, issued, other, gates, events,
+    otherLookup: { ...lookup(other), commandDigest: 'd'.repeat(43) },
+    control: value => { controlled = value; } };
+}
+for (const order of [[0, 1], [1, 0]]) test('I1 concurrent handles: exclusive consume order ' + order.join('-'), async () => {
+  const f = await controlledIdentityHandles(); f.control(true);
+  const pending = [];
+  pending[0] = f.h.lookup(lookup(f.issued), true); await f.gates[0].entered.promise;
+  pending[1] = f.h.lookup(lookup(f.issued), true); await f.gates[1].entered.promise;
+  f.events.push('both-verifiers-pending');
+  const results = [];
+  for (const index of order) {
+    f.events.push('release:' + index); f.gates[index].release.resolve();
+    results[index] = await pending[index];
+    f.events.push('result:' + index + ':' + (results[index].ok ? 'success' : results[index].code));
+  }
+  f.control(false);
+  const row = { name: 'exclusive-handle-consume', order, events: f.events,
+    results: results.map(r => r.ok ? { ok: true } : { ok: false, code: r.code }),
+    successes: results.filter(r => r.ok).length };
+  evidence.push(row); console.log('HANDLE_CONSUMPTION ' + JSON.stringify(row));
+  assert.equal(row.successes, 1, 'Exactly one consumer must succeed; two successes reproduce the race');
+  assert.equal(results[order[0]].ok, true);
+  assert.deepEqual(results[order[1]], { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
+  assert.equal(f.h.pendingHandles, 1);
+  assert.deepEqual(await f.h.lookup(lookup(f.issued), true), { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
+  const other = await f.h.lookup(f.otherLookup, true);
+  assert.equal(other.ok, true); assert.deepEqual(other.principal, f.other.principal);
+  assert.equal(f.h.pendingHandles, 0);
+});
+test('I1 concurrent handles: cancel before the final consume check denies the pending consumer', async () => {
+  const f = await controlledIdentityHandles(); f.control(true);
+  const pending = f.h.lookup(lookup(f.issued), true); await f.gates[0].entered.promise;
+  await f.h.cancel(f.issued.handle); assert.equal(f.h.pendingHandles, 1);
+  f.gates[0].release.resolve();
+  assert.deepEqual(await pending, { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
+  f.control(false);
+  assert.deepEqual(await f.h.lookup(lookup(f.issued), true), { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
+  assert.equal((await f.h.lookup(f.otherLookup, true)).ok, true);
+  assert.equal(f.h.pendingHandles, 0);
+});
+test('I1 concurrent handles: non-consuming lookups preserve the handle and verified principal', async () => {
+  const f = await controlledIdentityHandles(); f.control(true);
+  const first = f.h.lookup(lookup(f.issued), false); await f.gates[0].entered.promise;
+  const second = f.h.lookup(lookup(f.issued), false); await f.gates[1].entered.promise;
+  f.gates[1].release.resolve(); assert.deepEqual(await second, { ok: true, principal: f.issued.principal });
+  f.gates[0].release.resolve(); assert.deepEqual(await first, { ok: true, principal: f.issued.principal });
+  assert.equal(f.h.pendingHandles, 2); f.control(false);
+  assert.equal((await f.h.lookup(lookup(f.issued), true)).ok, true);
+  assert.equal((await f.h.lookup(f.otherLookup, true)).ok, true);
+  assert.equal(f.h.pendingHandles, 0);
+});
+for (const cause of ['ECONNRESET', 'ETIMEDOUT', 'UNAVAILABLE']) test('I1 concurrent handles: pending verifier ' + cause + ' remains a dependency failure', async () => {
+  const f = await controlledIdentityHandles(); f.control(true);
+  const pending = f.h.lookup(lookup(f.issued), true); await f.gates[0].entered.promise;
+  f.gates[0].release.reject(Object.assign(new Error('PRIVATE_DETAIL'), { code: cause }));
+  assert.deepEqual(await pending, { ok: false, code: 'INTEGRATION_DEPENDENCY_UNAVAILABLE' });
+  assert.equal(f.h.pendingHandles, 2); f.control(false);
+  assert.equal((await f.h.lookup(lookup(f.issued), true)).ok, true);
+  assert.equal((await f.h.lookup(f.otherLookup, true)).ok, true);
+  assert.equal(f.h.pendingHandles, 0);
+});
+
 test('I1 shared client preserves the exact local budgets and closed capabilities', async () => {
   assert.equal(PORT_DEADLINE_MS, 1000); assert.equal(EXECUTION_PORT_DEADLINE_MS, 3000);
   const calls = [];

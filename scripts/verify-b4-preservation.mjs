@@ -48,7 +48,7 @@ export const I1Q_PATHS = Object.freeze([
 ]);
 // Closed content authorization, not a path-only exception. The verifier digest is
 // normalized solely at its own 64-hex declaration to avoid a recursive self-hash.
-const I1_VERIFIER_HASH = '3ecf8f29f7c71438ef84aab9717adb43d7973250d7e2afe583d780cda0b0902e';
+const I1_VERIFIER_HASH = '19df2de86284c03633c120c73e941293325ff654feb35fde029e4adbae557700';
 const I1_CONTENT = Object.freeze({
   'prototype/mcp-local/scripts/ci.mjs': '2c8ae2bce7a02608f924c57f77af9240e836f83a599addfb716e4e03de7dc712',
   '.github/workflows/b4-mcp-local.yml': '3af89bf098982f127eb35312de8bf35b363c92b09fb5058fddc32bb0cb5f9e33',
@@ -57,14 +57,14 @@ const I1_CONTENT = Object.freeze({
   'prototype/mcp-local/integration/guardian-adapter.ts': '262019868c9502d5e1a29155499811ee32bdcbafd91ea402a9922b9662ba6c55',
   'prototype/mcp-local/src/persistent-model.ts': 'f7e10d8fe5b3af3fca1d666ed170d353bf62c793859cb348992cff05d053566c',
   'prototype/mcp-local/integration/profile.ts': '0356eb2c14dfd2ee79d0a221292397f9dbbd16c5420fd8a951398ffb34bc9989',
-  'prototype/mcp-local/integration/identity-core.ts': 'e2515c484705229745b1878bd0a28c426766b52829b63771cf97ecfb7c9cd166',
+  'prototype/mcp-local/integration/identity-core.ts': '2a317dc87ce5e5160f9e1b684972f20a5390132bc4266f64c017140359e42568',
   'prototype/mcp-local/homologation/service-client.ts': '01692aba26c650feac59ffcbe685f75fa59780d2c101abb228514bdb7c0260df',
-  'prototype/mcp-local/lab/tests/boundaries.node.mjs': '2b2577f4d19d65094786c90d782b8fd4b1444ebd1a5f31867dafaf2df3c9253b',
+  'prototype/mcp-local/lab/tests/boundaries.node.mjs': '2676d2a00747ba711688f678b2c49706b981f908f56687aaf1d76c11b48b6bbe',
   'tests/b4/m21-preservation.node.mjs': '3eb19072da24cf389581920412a8efb4fe91ced425d57684a8849afbfe225740',
   'prototype/mcp-local/integration/composition.ts': 'd35cf5a51698f2da21ac946c600b5b2d8fc8c4290035cc2f606eaec6fc755fbd',
   'prototype/mcp-local/integration/identity.ts': 'ec172fa441d05c004ffb943a5d7374bb488204fbda715fd18367599e8ddf539e',
   'prototype/mcp-local/homologation/ports.ts': '491af00348dd0cab9bd45a98b75e8100611c88510c0724494f367dfd4e0c3822',
-  'prototype/mcp-local/tests/homologation.test.mjs': '0b3256458822052e65a97d01da4b40aea6e1b055e991590ebeee40b4d0802727'
+  'prototype/mcp-local/tests/homologation.test.mjs': '9cbe38dbddd554f899df0e37efd08585fa6ec077c717b2fef2df3cf7b259d73d'
 });
 export const M20_MODIFIED = Object.freeze(['.github/workflows/b3-sqlite.yml',
   'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);

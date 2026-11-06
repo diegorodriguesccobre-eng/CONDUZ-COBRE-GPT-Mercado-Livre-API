@@ -438,10 +438,12 @@ function i1GitFixture(run, { workingTree = false, ref = 'HEAD' } = {}) {
     assert.equal(git('merge-base', '--is-ancestor', I1_BASE, 'HEAD'), '');
     assert.deepEqual(git('ls-files', '-z').split('\0').filter(Boolean).sort(), [...collected.current.keys()].sort());
     if (workingTree) {
-      const candidatePaths = Object.freeze([...I1_CI_PATHS, 'prototype/mcp-local/homologation/service-client.ts']);
+      const candidatePaths = Object.freeze([...I1_CI_PATHS, 'prototype/mcp-local/homologation/service-client.ts',
+        'prototype/mcp-local/integration/identity-core.ts', 'prototype/mcp-local/lab/tests/boundaries.node.mjs']);
       assert.deepEqual([...candidatePaths].sort(), ['.github/workflows/b4-mcp-local.yml', 'prototype/mcp-local/scripts/ci.mjs',
         'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs',
-        'tests/b4/m21-preservation.node.mjs', 'prototype/mcp-local/homologation/service-client.ts'].sort());
+        'tests/b4/m21-preservation.node.mjs', 'prototype/mcp-local/homologation/service-client.ts',
+        'prototype/mcp-local/integration/identity-core.ts', 'prototype/mcp-local/lab/tests/boundaries.node.mjs'].sort());
       const parent = git('rev-parse', 'HEAD'), changedPaths = [];
       for (const path of candidatePaths) {
         const bytes = readFileSync(resolve(root, path));
@@ -1450,7 +1452,7 @@ test('M1 public build exports only the handler and excludes private fixtures and
 // workflow mutation, retry or additional privilege is involved.
 const i1qCIEvidence = [];
 const i1qSuites = Object.freeze([
-  Object.freeze({ file: 'lab/tests/boundaries.node.mjs', expectedTests: 55 }),
+  Object.freeze({ file: 'lab/tests/boundaries.node.mjs', expectedTests: 62 }),
   Object.freeze({ file: '../../tests/b4/m21-preservation.node.mjs', expectedTests: 51 })
 ]);
 for (const suite of i1qSuites) test('I1-Q CI runs all tests in ' + suite.file, { timeout: 45000 }, () => {
