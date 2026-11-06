@@ -1,0 +1,610 @@
+[
+  {
+    "caseId": "R1-22",
+    "kind": "grant",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "REVISION_CONFLICT",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "O07Yl-w4MZ7bhixm3jE-Do3EZxNuMeYqKLKMouf0l5w",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R1-22",
+    "kind": "grant",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "REVISION_CONFLICT",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "O07Yl-w4MZ7bhixm3jE-Do3EZxNuMeYqKLKMouf0l5w",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R1-65",
+    "kind": "revoke",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "REVISION_CONFLICT",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "bzT9rqW_C7IuOC8cyWcxMZTO024wLV9q72bSr_wxLnc",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": []
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R1-65",
+    "kind": "revoke",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "REVISION_CONFLICT",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "bzT9rqW_C7IuOC8cyWcxMZTO024wLV9q72bSr_wxLnc",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": []
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q03",
+    "kind": "grant",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:ECONNRESET",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "nDdBcYTXOFuadM9t5yaCIE7_Dd2jmZFuUpQ30tBPNlI",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q03",
+    "kind": "grant",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:ECONNRESET",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "nDdBcYTXOFuadM9t5yaCIE7_Dd2jmZFuUpQ30tBPNlI",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q04",
+    "kind": "grant",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:ETIMEDOUT",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "x45fTeTIa6nji92KB9KPop-ay7zJoJeRmyUJdj6QSjU",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q04",
+    "kind": "grant",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:ETIMEDOUT",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "x45fTeTIa6nji92KB9KPop-ay7zJoJeRmyUJdj6QSjU",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q05",
+    "kind": "grant",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:UNAVAILABLE",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "h_EO_r4bztMMVUD8NG_CP3xhVcZ8urj-oCGKkPNslE4",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q05",
+    "kind": "grant",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:UNAVAILABLE",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "h_EO_r4bztMMVUD8NG_CP3xhVcZ8urj-oCGKkPNslE4",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q06",
+    "kind": "revoke",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:ECONNRESET",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "Zc4RQNUxkkDKqIpLlhFdUGvXRP5oVHpfgbrzB6keNKc",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": []
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q06",
+    "kind": "revoke",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:ECONNRESET",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "Zc4RQNUxkkDKqIpLlhFdUGvXRP5oVHpfgbrzB6keNKc",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": []
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q07",
+    "kind": "revoke",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:ETIMEDOUT",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "aGoMrw1hvvJJJloeV773a7avsrSggh_TSbTXdcWb_sI",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": []
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q07",
+    "kind": "revoke",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:ETIMEDOUT",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "aGoMrw1hvvJJJloeV773a7avsrSggh_TSbTXdcWb_sI",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": []
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q08",
+    "kind": "revoke",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:UNAVAILABLE",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "mixa1_BP0NJRG6rR9wUchGu2_FFKrVFt12ADEuQruEE",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": []
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  },
+  {
+    "caseId": "R2-Q08",
+    "kind": "revoke",
+    "winnerAccount": "account-a",
+    "winnerRevision": 2,
+    "losingResult": "injected:UNAVAILABLE",
+    "beforeSequence": 2,
+    "persistedSequence": 3,
+    "root": "mixa1_BP0NJRG6rR9wUchGu2_FFKrVFt12ADEuQruEE",
+    "confirmed": true,
+    "losingOperationAbsent": true,
+    "authoritativeViewMatches": true,
+    "decisions": [
+      {
+        "account": "account-a",
+        "required": "read",
+        "granted": []
+      },
+      {
+        "account": "account-a",
+        "required": "connect",
+        "granted": []
+      },
+      {
+        "account": "account-b",
+        "required": "read",
+        "granted": [
+          "read"
+        ]
+      },
+      {
+        "account": "account-b",
+        "required": "connect",
+        "granted": []
+      }
+    ]
+  }
+]

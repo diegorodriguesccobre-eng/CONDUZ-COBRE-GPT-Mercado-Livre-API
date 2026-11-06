@@ -1,0 +1,77 @@
+TAP version 13
+# I2 private identity: typecheck and isolated bundle PASS
+# Subtest: I2 identity: separate identity Worker serves both accounts and all three tools in both MCP profiles
+ok 1 - I2 identity: separate identity Worker serves both accounts and all three tools in both MCP profiles
+  ---
+  duration_ms: 5721.648192
+  type: 'test'
+  ...
+# Subtest: I2 identity: cross-account access is explicitly denied without provider I/O
+ok 2 - I2 identity: cross-account access is explicitly denied without provider I/O
+  ---
+  duration_ms: 1381.914296
+  type: 'test'
+  ...
+# Subtest: I2 identity: JWT policy is the inherited signature, issuer, audience, operator and expiry policy
+ok 3 - I2 identity: JWT policy is the inherited signature, issuer, audience, operator and expiry policy
+  ---
+  duration_ms: 862.387739
+  type: 'test'
+  ...
+# Subtest: I2 identity: private service exclusive consumption, reuse and independence
+ok 4 - I2 identity: private service exclusive consumption, reuse and independence
+  ---
+  duration_ms: 925.035275
+  type: 'test'
+  ...
+# Subtest: I2 identity: private cancellation invalidates a handle without claiming crypto interruption
+ok 5 - I2 identity: private cancellation invalidates a handle without claiming crypto interruption
+  ---
+  duration_ms: 837.847194
+  type: 'test'
+  ...
+# Subtest: I2 identity: identity object restart loses ephemeral handles and requires fresh verification
+ok 6 - I2 identity: identity object restart loses ephemeral handles and requires fresh verification
+  ---
+  duration_ms: 1330.953573
+  type: 'test'
+  ...
+# Subtest: I2 identity: identity transport failure is dependency unavailable, never a read denial
+ok 7 - I2 identity: identity transport failure is dependency unavailable, never a read denial
+  ---
+  duration_ms: 1224.671021
+  type: 'test'
+  ...
+# Subtest: I2 identity: private routes and selectors are closed; no administration or external URL forwarding
+ok 8 - I2 identity: private routes and selectors are closed; no administration or external URL forwarding
+  ---
+  duration_ms: 1106.439244
+  type: 'test'
+  ...
+# Subtest: I2 identity: empty laboratory does not bootstrap grants or tokens
+ok 9 - I2 identity: empty laboratory does not bootstrap grants or tokens
+  ---
+  duration_ms: 863.351511
+  type: 'test'
+  ...
+# Subtest: I2 identity: configuration refuses operational modes, private JWKS, extra bindings and foreign selectors
+ok 10 - I2 identity: configuration refuses operational modes, private JWKS, extra bindings and foreign selectors
+  ---
+  duration_ms: 159.575574
+  type: 'test'
+  ...
+# Subtest: I2 identity: private artifact has no fixture graph and public I1 artifact inputs stay byte-identical
+ok 11 - I2 identity: private artifact has no fixture graph and public I1 artifact inputs stay byte-identical
+  ---
+  duration_ms: 239.056423
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16982.618489

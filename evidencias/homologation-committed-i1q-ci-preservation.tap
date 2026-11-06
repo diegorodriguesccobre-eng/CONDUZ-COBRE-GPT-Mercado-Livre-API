@@ -1,0 +1,388 @@
+TAP version 13
+# Subtest: I1 preservation accepts only six additions/ten exact transformations at the fixed main checkpoint
+ok 1 - I1 preservation accepts only six additions/ten exact transformations at the fixed main checkpoint
+  ---
+  duration_ms: 17.81487
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/profile.ts
+ok 2 - I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/profile.ts
+  ---
+  duration_ms: 7.829725
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/integration/profile.ts
+ok 3 - I1 required file cannot be missing: prototype/mcp-local/integration/profile.ts
+  ---
+  duration_ms: 0.197046
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/identity-core.ts
+ok 4 - I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/identity-core.ts
+  ---
+  duration_ms: 7.690722
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/integration/identity-core.ts
+ok 5 - I1 required file cannot be missing: prototype/mcp-local/integration/identity-core.ts
+  ---
+  duration_ms: 0.300672
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/homologation/service-client.ts
+ok 6 - I1 exact content hash refuses an extra byte: prototype/mcp-local/homologation/service-client.ts
+  ---
+  duration_ms: 6.189751
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/homologation/service-client.ts
+ok 7 - I1 required file cannot be missing: prototype/mcp-local/homologation/service-client.ts
+  ---
+  duration_ms: 0.221914
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/lab/tests/boundaries.node.mjs
+ok 8 - I1 exact content hash refuses an extra byte: prototype/mcp-local/lab/tests/boundaries.node.mjs
+  ---
+  duration_ms: 8.997085
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/lab/tests/boundaries.node.mjs
+ok 9 - I1 required file cannot be missing: prototype/mcp-local/lab/tests/boundaries.node.mjs
+  ---
+  duration_ms: 0.182905
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: tests/b4/m21-preservation.node.mjs
+ok 10 - I1 exact content hash refuses an extra byte: tests/b4/m21-preservation.node.mjs
+  ---
+  duration_ms: 5.928428
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: tests/b4/m21-preservation.node.mjs
+ok 11 - I1 required file cannot be missing: tests/b4/m21-preservation.node.mjs
+  ---
+  duration_ms: 0.203666
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/recovery/core.ts
+ok 12 - I1 exact content hash refuses an extra byte: prototype/mcp-local/recovery/core.ts
+  ---
+  duration_ms: 7.978885
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/recovery/core.ts
+ok 13 - I1 required file cannot be missing: prototype/mcp-local/recovery/core.ts
+  ---
+  duration_ms: 0.135314
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/composition.ts
+ok 14 - I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/composition.ts
+  ---
+  duration_ms: 7.150485
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/integration/composition.ts
+ok 15 - I1 required file cannot be missing: prototype/mcp-local/integration/composition.ts
+  ---
+  duration_ms: 0.208553
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/identity.ts
+ok 16 - I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/identity.ts
+  ---
+  duration_ms: 6.574299
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/integration/identity.ts
+ok 17 - I1 required file cannot be missing: prototype/mcp-local/integration/identity.ts
+  ---
+  duration_ms: 0.122354
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/homologation/ports.ts
+ok 18 - I1 exact content hash refuses an extra byte: prototype/mcp-local/homologation/ports.ts
+  ---
+  duration_ms: 7.16026
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/homologation/ports.ts
+ok 19 - I1 required file cannot be missing: prototype/mcp-local/homologation/ports.ts
+  ---
+  duration_ms: 0.100281
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: scripts/verify-b4-preservation.mjs
+ok 20 - I1 exact content hash refuses an extra byte: scripts/verify-b4-preservation.mjs
+  ---
+  duration_ms: 5.349659
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: scripts/verify-b4-preservation.mjs
+ok 21 - I1 required file cannot be missing: scripts/verify-b4-preservation.mjs
+  ---
+  duration_ms: 0.129214
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/tests/homologation.test.mjs
+ok 22 - I1 exact content hash refuses an extra byte: prototype/mcp-local/tests/homologation.test.mjs
+  ---
+  duration_ms: 7.178287
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/tests/homologation.test.mjs
+ok 23 - I1 required file cannot be missing: prototype/mcp-local/tests/homologation.test.mjs
+  ---
+  duration_ms: 0.097987
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/recovery/model.ts
+ok 24 - I1 exact content hash refuses an extra byte: prototype/mcp-local/recovery/model.ts
+  ---
+  duration_ms: 2.656593
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/recovery/model.ts
+ok 25 - I1 required file cannot be missing: prototype/mcp-local/recovery/model.ts
+  ---
+  duration_ms: 0.091277
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/guardian-adapter.ts
+ok 26 - I1 exact content hash refuses an extra byte: prototype/mcp-local/integration/guardian-adapter.ts
+  ---
+  duration_ms: 3.526019
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/integration/guardian-adapter.ts
+ok 27 - I1 required file cannot be missing: prototype/mcp-local/integration/guardian-adapter.ts
+  ---
+  duration_ms: 0.120522
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/src/persistent-model.ts
+ok 28 - I1 exact content hash refuses an extra byte: prototype/mcp-local/src/persistent-model.ts
+  ---
+  duration_ms: 2.420798
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/src/persistent-model.ts
+ok 29 - I1 required file cannot be missing: prototype/mcp-local/src/persistent-model.ts
+  ---
+  duration_ms: 0.080682
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: prototype/mcp-local/scripts/ci.mjs
+ok 30 - I1 exact content hash refuses an extra byte: prototype/mcp-local/scripts/ci.mjs
+  ---
+  duration_ms: 3.678868
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: prototype/mcp-local/scripts/ci.mjs
+ok 31 - I1 required file cannot be missing: prototype/mcp-local/scripts/ci.mjs
+  ---
+  duration_ms: 0.128403
+  type: 'test'
+  ...
+# Subtest: I1 exact content hash refuses an extra byte: .github/workflows/b4-mcp-local.yml
+ok 32 - I1 exact content hash refuses an extra byte: .github/workflows/b4-mcp-local.yml
+  ---
+  duration_ms: 3.46058
+  type: 'test'
+  ...
+# Subtest: I1 required file cannot be missing: .github/workflows/b4-mcp-local.yml
+ok 33 - I1 required file cannot be missing: .github/workflows/b4-mcp-local.yml
+  ---
+  duration_ms: 0.096856
+  type: 'test'
+  ...
+# Subtest: I1 all other 162 main files remain protected by bytes or a closed I2 transformation
+ok 34 - I1 all other 162 main files remain protected by bytes or a closed I2 transformation
+  ---
+  duration_ms: 433.88942
+  type: 'test'
+  ...
+# Subtest: I1 unexpected/incompatible path is not enrolled: private.zip
+ok 35 - I1 unexpected/incompatible path is not enrolled: private.zip
+  ---
+  duration_ms: 0.218648
+  type: 'test'
+  ...
+# Subtest: I1 unexpected/incompatible path is not enrolled: prototype/mcp-local/lab/extra.ts
+ok 36 - I1 unexpected/incompatible path is not enrolled: prototype/mcp-local/lab/extra.ts
+  ---
+  duration_ms: 0.080641
+  type: 'test'
+  ...
+# Subtest: I1 unexpected/incompatible path is not enrolled: prototype/mcp-local/lab/tests/unapproved.node.mjs
+ok 37 - I1 unexpected/incompatible path is not enrolled: prototype/mcp-local/lab/tests/unapproved.node.mjs
+  ---
+  duration_ms: 0.071077
+  type: 'test'
+  ...
+# Subtest: I1 unexpected/incompatible path is not enrolled: ../profile.ts
+ok 38 - I1 unexpected/incompatible path is not enrolled: ../profile.ts
+  ---
+  duration_ms: 0.064748
+  type: 'test'
+  ...
+# Subtest: I1 unexpected/incompatible path is not enrolled: /tmp/profile.ts
+ok 39 - I1 unexpected/incompatible path is not enrolled: /tmp/profile.ts
+  ---
+  duration_ms: 0.065639
+  type: 'test'
+  ...
+# Subtest: I1 unexpected/incompatible path is not enrolled: prototype\\mcp-local\\integration\\profile.ts
+ok 40 - I1 unexpected/incompatible path is not enrolled: prototype\\mcp-local\\integration\\profile.ts
+  ---
+  duration_ms: 0.111307
+  type: 'test'
+  ...
+# Subtest: I1 unexpected/incompatible path is not enrolled: prototype/mcp-local/lab/../profile.ts
+ok 41 - I1 unexpected/incompatible path is not enrolled: prototype/mcp-local/lab/../profile.ts
+  ---
+  duration_ms: 0.070866
+  type: 'test'
+  ...
+# Subtest: I1 ancestry and complete baseline cannot be replaced by branch hints or caller arguments
+ok 42 - I1 ancestry and complete baseline cannot be replaced by branch hints or caller arguments
+  ---
+  duration_ms: 6.244719
+  type: 'test'
+  ...
+# Subtest: I1 the normalized self-hash cannot authorize changing its own declared digest
+ok 43 - I1 the normalized self-hash cannot authorize changing its own declared digest
+  ---
+  duration_ms: 6.11614
+  type: 'test'
+  ...
+# Subtest: I1 base matches the original Git tree independently of the verifier counters
+ok 44 - I1 base matches the original Git tree independently of the verifier counters
+  ---
+  duration_ms: 619.5346
+  type: 'test'
+  ...
+# Subtest: I1 symlinked authorized file and symlinked parent are refused before content authorization
+ok 45 - I1 symlinked authorized file and symlinked parent are refused before content authorization
+  ---
+  duration_ms: 227.106655
+  type: 'test'
+  ...
+# Subtest: I1-Q scope contains exactly the eight separately authorized paths
+ok 46 - I1-Q scope contains exactly the eight separately authorized paths
+  ---
+  duration_ms: 0.287522
+  type: 'test'
+  ...
+# Subtest: I1 CI separation authorizes only the five named paths and no fourth historical exception
+ok 47 - I1 CI separation authorizes only the five named paths and no fourth historical exception
+  ---
+  duration_ms: 14.169693
+  type: 'test'
+  ...
+# Subtest: I1 private diagnostics permit only the four named files while CI and dependencies remain pinned
+ok 48 - I1 private diagnostics permit only the four named files while CI and dependencies remain pinned
+  ---
+  duration_ms: 17.201984
+  type: 'test'
+  ...
+# Subtest: I1-Q CI cannot silently remove boundaries invocation
+ok 49 - I1-Q CI cannot silently remove boundaries invocation
+  ---
+  duration_ms: 6.31544
+  type: 'test'
+  ...
+# Subtest: I1-Q CI cannot silently remove preservation invocation
+ok 50 - I1-Q CI cannot silently remove preservation invocation
+  ---
+  duration_ms: 7.26029
+  type: 'test'
+  ...
+# Subtest: I1-Q CI cannot silently replace child execution
+ok 51 - I1-Q CI cannot silently replace child execution
+  ---
+  duration_ms: 8.367133
+  type: 'test'
+  ...
+# Subtest: I2 fixed merged checkpoint permits exactly six additions and four transformations
+ok 52 - I2 fixed merged checkpoint permits exactly six additions and four transformations
+  ---
+  duration_ms: 6.04849
+  type: 'test'
+  ...
+# Subtest: I2 preserves every I1 content pin and normalized self-hash declaration
+ok 53 - I2 preserves every I1 content pin and normalized self-hash declaration
+  ---
+  duration_ms: 7.144156
+  type: 'test'
+  ...
+# Subtest: I2 content, ancestry, inventory and its own digest reject unapproved changes
+ok 54 - I2 content, ancestry, inventory and its own digest reject unapproved changes
+  ---
+  duration_ms: 82.203037
+  type: 'test'
+  ...
+# Subtest: R145 revision has a fixed 184-file checkpoint and exactly four content-authorized transformations
+ok 55 - R145 revision has a fixed 184-file checkpoint and exactly four content-authorized transformations
+  ---
+  duration_ms: 14.610616
+  type: 'test'
+  ...
+# Subtest: R145 exact hashes reject an extra byte and a missing file in every authorized path
+ok 56 - R145 exact hashes reject an extra byte and a missing file in every authorized path
+  ---
+  duration_ms: 48.396346
+  type: 'test'
+  ...
+# Subtest: R145 all 180 paths outside the manifest remain byte identical and reject mutation
+ok 57 - R145 all 180 paths outside the manifest remain byte identical and reject mutation
+  ---
+  duration_ms: 1671.988393
+  type: 'test'
+  ...
+# Subtest: R145 retains I1/I2 content pins, self-hash declarations and the complete I2 validator body
+ok 58 - R145 retains I1/I2 content pins, self-hash declarations and the complete I2 validator body
+  ---
+  duration_ms: 4.676757
+  type: 'test'
+  ...
+# Subtest: R145 independent Git oracle proves the checkpoint and exactly four changed paths
+ok 59 - R145 independent Git oracle proves the checkpoint and exactly four changed paths
+  ---
+  duration_ms: 630.078428
+  type: 'test'
+  ...
+# Subtest: R145 ancestry and baseline inventory cannot be replaced by metadata or a caller hint
+ok 60 - R145 ancestry and baseline inventory cannot be replaced by metadata or a caller hint
+  ---
+  duration_ms: 0.390607
+  type: 'test'
+  ...
+# Subtest: R145 mixed epochs reject old bytes under the new verifier and new bytes under I2 rules
+ok 61 - R145 mixed epochs reject old bytes under the new verifier and new bytes under I2 rules
+  ---
+  duration_ms: 79.482212
+  type: 'test'
+  ...
+# Subtest: R145 normalized self-hash cannot authorize replacing its own declared digest
+ok 62 - R145 normalized self-hash cannot authorize replacing its own declared digest
+  ---
+  duration_ms: 9.959985
+  type: 'test'
+  ...
+# Subtest: R145 no extra publication path, deletion or replacement of the immutable checkpoint is enrolled
+ok 63 - R145 no extra publication path, deletion or replacement of the immutable checkpoint is enrolled
+  ---
+  duration_ms: 2.671744
+  type: 'test'
+  ...
+1..63
+# tests 63
+# suites 0
+# pass 63
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4269.812848

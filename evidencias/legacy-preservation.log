@@ -1,0 +1,24 @@
+✔ B4 preservation accepts only the approved 94/97 and three exceptions (31.902861ms)
+✔ B4 preservation rejects fourth historical exception (14.11293ms)
+✔ B4 preservation rejects historical deletion (0.89764ms)
+✔ B4 preservation rejects unexpected publication file (0.247072ms)
+✔ B4 preservation rejects unapproved direct dependency (13.832248ms)
+✔ B4 preservation rejects package script injection (12.446113ms)
+✔ B4 preservation rejects unapproved override (13.914446ms)
+✔ B4 preservation rejects root lock drift (19.696229ms)
+✔ B4 preservation rejects MCP lock drift (13.424104ms)
+✔ B4 preservation rejects SQLite test removal (13.618597ms)
+✔ B4 preservation rejects SQLite branch bypass (12.581998ms)
+✔ B4 preservation rejects original verifier modification (10.528178ms)
+✔ B4 preservation rejects production activation (10.59644ms)
+✔ B4 preservation rejects readiness activation (14.402245ms)
+✔ B4 preservation rejects divergent base (0.385911ms)
+✔ B4 preservation compares raw bytes rather than UTF-8 replacement characters (0.802958ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 406.070903

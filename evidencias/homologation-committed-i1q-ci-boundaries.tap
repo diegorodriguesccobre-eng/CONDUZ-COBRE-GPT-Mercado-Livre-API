@@ -1,0 +1,384 @@
+TAP version 13
+# Subtest: I1 profile is immutable, local-only and cannot be minted by a client-shaped object
+ok 1 - I1 profile is immutable, local-only and cannot be minted by a client-shaped object
+  ---
+  duration_ms: 1.130879
+  type: 'test'
+  ...
+# Subtest: I1 ingress profile: loopback
+ok 2 - I1 ingress profile: loopback
+  ---
+  duration_ms: 0.337957
+  type: 'test'
+  ...
+# Subtest: I1 ingress profile: matching origin
+ok 3 - I1 ingress profile: matching origin
+  ---
+  duration_ms: 0.204888
+  type: 'test'
+  ...
+# Subtest: I1 ingress profile: remote HTTPS
+ok 4 - I1 ingress profile: remote HTTPS
+  ---
+  duration_ms: 0.085328
+  type: 'test'
+  ...
+# Subtest: I1 ingress profile: localhost alias
+ok 5 - I1 ingress profile: localhost alias
+  ---
+  duration_ms: 0.077476
+  type: 'test'
+  ...
+# Subtest: I1 ingress profile: foreign Host
+ok 6 - I1 ingress profile: foreign Host
+  ---
+  duration_ms: 0.180762
+  type: 'test'
+  ...
+# Subtest: I1 ingress profile: foreign Origin
+ok 7 - I1 ingress profile: foreign Origin
+  ---
+  duration_ms: 0.081422
+  type: 'test'
+  ...
+# Subtest: I1 ingress profile: fragment
+ok 8 - I1 ingress profile: fragment
+  ---
+  duration_ms: 0.165398
+  type: 'test'
+  ...
+# Subtest: I1 local identity uses the existing signature verifier and hashed operator identity
+ok 9 - I1 local identity uses the existing signature verifier and hashed operator identity
+  ---
+  duration_ms: 9.092323
+  type: 'test'
+  ...
+# Subtest: I1 explicit JWT refusal: unknown operator
+ok 10 - I1 explicit JWT refusal: unknown operator
+  ---
+  duration_ms: 3.016322
+  type: 'test'
+  ...
+# Subtest: I1 explicit JWT refusal: wrong audience
+ok 11 - I1 explicit JWT refusal: wrong audience
+  ---
+  duration_ms: 1.63017
+  type: 'test'
+  ...
+# Subtest: I1 explicit JWT refusal: wrong issuer
+ok 12 - I1 explicit JWT refusal: wrong issuer
+  ---
+  duration_ms: 1.82327
+  type: 'test'
+  ...
+# Subtest: I1 explicit JWT refusal: wrong type
+ok 13 - I1 explicit JWT refusal: wrong type
+  ---
+  duration_ms: 1.302668
+  type: 'test'
+  ...
+# Subtest: I1 explicit JWT refusal: expired
+ok 14 - I1 explicit JWT refusal: expired
+  ---
+  duration_ms: 1.515758
+  type: 'test'
+  ...
+# HANDLE_CONSUMPTION {"name":"exclusive-handle-consume","order":[0,1],"events":["verify-enter:0","verify-enter:1","both-verifiers-pending","release:0","verify-return:0","result:0:success","release:1","verify-return:1","result:1:INTEGRATION_IDENTITY_DENIED"],"results":[{"ok":true},{"ok":false,"code":"INTEGRATION_IDENTITY_DENIED"}],"successes":1}
+# HANDLE_CONSUMPTION {"name":"exclusive-handle-consume","order":[1,0],"events":["verify-enter:0","verify-enter:1","both-verifiers-pending","release:1","verify-return:1","result:1:success","release:0","verify-return:0","result:0:INTEGRATION_IDENTITY_DENIED"],"results":[{"ok":false,"code":"INTEGRATION_IDENTITY_DENIED"},{"ok":true}],"successes":1}
+# Subtest: I1 a signature from another key is refused
+ok 15 - I1 a signature from another key is refused
+  ---
+  duration_ms: 26.502445
+  type: 'test'
+  ...
+# Subtest: I1 identity dependency ECONNRESET is not an identity/read denial
+ok 16 - I1 identity dependency ECONNRESET is not an identity/read denial
+  ---
+  duration_ms: 4.63114
+  type: 'test'
+  ...
+# Subtest: I1 identity dependency ETIMEDOUT is not an identity/read denial
+ok 17 - I1 identity dependency ETIMEDOUT is not an identity/read denial
+  ---
+  duration_ms: 0.83167
+  type: 'test'
+  ...
+# Subtest: I1 identity dependency UNAVAILABLE is not an identity/read denial
+ok 18 - I1 identity dependency UNAVAILABLE is not an identity/read denial
+  ---
+  duration_ms: 0.31314
+  type: 'test'
+  ...
+# Subtest: I1 Workers ExecutionContext is ignored as a third argument and cannot select a profile
+ok 19 - I1 Workers ExecutionContext is ignored as a third argument and cannot select a profile
+  ---
+  duration_ms: 0.548494
+  type: 'test'
+  ...
+# Subtest: I1 handles bind verified identity and command, reverify, consume once and never return the assertion
+ok 20 - I1 handles bind verified identity and command, reverify, consume once and never return the assertion
+  ---
+  duration_ms: 3.652108
+  type: 'test'
+  ...
+# Subtest: I1 handle does not authorize a substituted subject
+ok 21 - I1 handle does not authorize a substituted subject
+  ---
+  duration_ms: 0.236014
+  type: 'test'
+  ...
+# Subtest: I1 handle does not authorize a substituted command
+ok 22 - I1 handle does not authorize a substituted command
+  ---
+  duration_ms: 0.147692
+  type: 'test'
+  ...
+# Subtest: I1 handle does not authorize a substituted expiry
+ok 23 - I1 handle does not authorize a substituted expiry
+  ---
+  duration_ms: 0.103846
+  type: 'test'
+  ...
+# Subtest: I1 handles cannot be recreated by a restart or client-declared identity
+ok 24 - I1 handles cannot be recreated by a restart or client-declared identity
+  ---
+  duration_ms: 0.695105
+  type: 'test'
+  ...
+# Subtest: I1 identity revocation or expiration is observed on lookup, never cached into authority
+ok 25 - I1 identity revocation or expiration is observed on lookup, never cached into authority
+  ---
+  duration_ms: 0.473852
+  type: 'test'
+  ...
+# Subtest: I1 handle capacity remains bounded and expired slots are reclaimed
+ok 26 - I1 handle capacity remains bounded and expired slots are reclaimed
+  ---
+  duration_ms: 1.827146
+  type: 'test'
+  ...
+# Subtest: I1 handle verifier dependency failure: ECONNRESET
+ok 27 - I1 handle verifier dependency failure: ECONNRESET
+  ---
+  duration_ms: 0.354362
+  type: 'test'
+  ...
+# Subtest: I1 handle verifier dependency failure: ETIMEDOUT
+ok 28 - I1 handle verifier dependency failure: ETIMEDOUT
+  ---
+  duration_ms: 0.17299
+  type: 'test'
+  ...
+# Subtest: I1 handle verifier dependency failure: UNAVAILABLE
+ok 29 - I1 handle verifier dependency failure: UNAVAILABLE
+  ---
+  duration_ms: 0.075874
+  type: 'test'
+  ...
+# Subtest: I1 concurrent handles: exclusive consume order 0-1
+ok 30 - I1 concurrent handles: exclusive consume order 0-1
+  ---
+  duration_ms: 0.799351
+  type: 'test'
+  ...
+# Subtest: I1 concurrent handles: exclusive consume order 1-0
+ok 31 - I1 concurrent handles: exclusive consume order 1-0
+  ---
+  duration_ms: 0.440652
+  type: 'test'
+  ...
+# Subtest: I1 concurrent handles: cancel before the final consume check denies the pending consumer
+ok 32 - I1 concurrent handles: cancel before the final consume check denies the pending consumer
+  ---
+  duration_ms: 0.236185
+  type: 'test'
+  ...
+# Subtest: I1 concurrent handles: non-consuming lookups preserve the handle and verified principal
+ok 33 - I1 concurrent handles: non-consuming lookups preserve the handle and verified principal
+  ---
+  duration_ms: 0.280491
+  type: 'test'
+  ...
+# Subtest: I1 concurrent handles: pending verifier ECONNRESET remains a dependency failure
+ok 34 - I1 concurrent handles: pending verifier ECONNRESET remains a dependency failure
+  ---
+  duration_ms: 0.32579
+  type: 'test'
+  ...
+# Subtest: I1 concurrent handles: pending verifier ETIMEDOUT remains a dependency failure
+ok 35 - I1 concurrent handles: pending verifier ETIMEDOUT remains a dependency failure
+  ---
+  duration_ms: 0.416075
+  type: 'test'
+  ...
+# Subtest: I1 concurrent handles: pending verifier UNAVAILABLE remains a dependency failure
+ok 36 - I1 concurrent handles: pending verifier UNAVAILABLE remains a dependency failure
+  ---
+  duration_ms: 0.210656
+  type: 'test'
+  ...
+# Subtest: I1 shared client preserves the exact local budgets and closed capabilities
+ok 37 - I1 shared client preserves the exact local budgets and closed capabilities
+  ---
+  duration_ms: 2.683432
+  type: 'test'
+  ...
+# Subtest: I1 service dependency ECONNRESET cannot prove READ_DENIED
+ok 38 - I1 service dependency ECONNRESET cannot prove READ_DENIED
+  ---
+  duration_ms: 0.750939
+  type: 'test'
+  ...
+# Subtest: I1 service dependency ETIMEDOUT cannot prove READ_DENIED
+ok 39 - I1 service dependency ETIMEDOUT cannot prove READ_DENIED
+  ---
+  duration_ms: 0.244036
+  type: 'test'
+  ...
+# Subtest: I1 service dependency ECONNREFUSED cannot prove READ_DENIED
+ok 40 - I1 service dependency ECONNREFUSED cannot prove READ_DENIED
+  ---
+  duration_ms: 0.486722
+  type: 'test'
+  ...
+# Subtest: I1 service dependency UNAVAILABLE cannot prove READ_DENIED
+ok 41 - I1 service dependency UNAVAILABLE cannot prove READ_DENIED
+  ---
+  duration_ms: 0.717628
+  type: 'test'
+  ...
+# Subtest: I1 malformed service response: HTTP 403
+ok 42 - I1 malformed service response: HTTP 403
+  ---
+  duration_ms: 0.472109
+  type: 'test'
+  ...
+# Subtest: I1 malformed service response: wrong MIME
+ok 43 - I1 malformed service response: wrong MIME
+  ---
+  duration_ms: 0.39278
+  type: 'test'
+  ...
+# Subtest: I1 malformed service response: redirect
+ok 44 - I1 malformed service response: redirect
+  ---
+  duration_ms: 0.65182
+  type: 'test'
+  ...
+# Subtest: I1 malformed service response: unknown envelope
+ok 45 - I1 malformed service response: unknown envelope
+  ---
+  duration_ms: 1.391321
+  type: 'test'
+  ...
+# Subtest: I1 malformed service response: oversize
+ok 46 - I1 malformed service response: oversize
+  ---
+  duration_ms: 0.384478
+  type: 'test'
+  ...
+# Subtest: I1 shared client propagates abort to the operation before timeout rejection is accepted
+ok 47 - I1 shared client propagates abort to the operation before timeout rejection is accepted
+  ---
+  duration_ms: 1000.283485
+  type: 'test'
+  ...
+# Subtest: I1 public read graph excludes identity fixture wrapper, storage drivers and test/admin entrypoints
+ok 48 - I1 public read graph excludes identity fixture wrapper, storage drivers and test/admin entrypoints
+  ---
+  duration_ms: 0.799131
+  type: 'test'
+  ...
+# Subtest: I1-Q actual M1 public artifact and all imports/outputs contain only the read composition
+ok 49 - I1-Q actual M1 public artifact and all imports/outputs contain only the read composition
+  ---
+  duration_ms: 254.581245
+  type: 'test'
+  ...
+# Subtest: I1-Q reusable integrated reader also excludes the private model and administrative schemas
+ok 50 - I1-Q reusable integrated reader also excludes the private model and administrative schemas
+  ---
+  duration_ms: 87.830423
+  type: 'test'
+  ...
+# Subtest: I1-Q compiled administrative component is rejected: mutationSchema
+ok 51 - I1-Q compiled administrative component is rejected: mutationSchema
+  ---
+  duration_ms: 2.456791
+  type: 'test'
+  ...
+# Subtest: I1-Q compiled administrative component is rejected: recoveryPlanSchema
+ok 52 - I1-Q compiled administrative component is rejected: recoveryPlanSchema
+  ---
+  duration_ms: 1.400114
+  type: 'test'
+  ...
+# Subtest: I1-Q compiled administrative component is rejected: simulatedMfa
+ok 53 - I1-Q compiled administrative component is rejected: simulatedMfa
+  ---
+  duration_ms: 1.161715
+  type: 'test'
+  ...
+# Subtest: I1-Q compiled administrative component is rejected: updateSchema
+ok 54 - I1-Q compiled administrative component is rejected: updateSchema
+  ---
+  duration_ms: 1.034574
+  type: 'test'
+  ...
+# Subtest: I1-Q compiled administrative component is rejected: revokeSchema
+ok 55 - I1-Q compiled administrative component is rejected: revokeSchema
+  ---
+  duration_ms: 0.989878
+  type: 'test'
+  ...
+# Subtest: I1-Q private transitively imported component cannot hide behind side-effect wrapper
+ok 56 - I1-Q private transitively imported component cannot hide behind side-effect wrapper
+  ---
+  duration_ms: 29.42066
+  type: 'test'
+  ...
+# Subtest: I1-Q private transitively imported component cannot hide behind renamed private schema
+ok 57 - I1-Q private transitively imported component cannot hide behind renamed private schema
+  ---
+  duration_ms: 42.397241
+  type: 'test'
+  ...
+# Subtest: I1-Q private transitively imported component cannot hide behind transitive grant wrapper
+ok 58 - I1-Q private transitively imported component cannot hide behind transitive grant wrapper
+  ---
+  duration_ms: 29.347356
+  type: 'test'
+  ...
+# Subtest: I1-Q private transitively imported component cannot hide behind dynamic import
+ok 59 - I1-Q private transitively imported component cannot hide behind dynamic import
+  ---
+  duration_ms: 48.027396
+  type: 'test'
+  ...
+# Subtest: I1-Q core has no import back to private wrappers and historical schemas are the same shared objects
+ok 60 - I1-Q core has no import back to private wrappers and historical schemas are the same shared objects
+  ---
+  duration_ms: 50.127767
+  type: 'test'
+  ...
+# Subtest: I1-Q moved read schemas and private mutation logic retain their approved source definitions
+ok 61 - I1-Q moved read schemas and private mutation logic retain their approved source definitions
+  ---
+  duration_ms: 7.350205
+  type: 'test'
+  ...
+# Subtest: I1-Q grant validation keeps strict bounds through the historical reexport
+ok 62 - I1-Q grant validation keeps strict bounds through the historical reexport
+  ---
+  duration_ms: 3.402422
+  type: 'test'
+  ...
+1..62
+# tests 62
+# suites 0
+# pass 62
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2018.338484

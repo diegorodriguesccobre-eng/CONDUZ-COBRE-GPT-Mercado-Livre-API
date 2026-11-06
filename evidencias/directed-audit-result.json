@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=^R1-45(?:-|:)",
+    "tests/recovery.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 2.079,
+  "timeout": false,
+  "limitSeconds": 300
+}

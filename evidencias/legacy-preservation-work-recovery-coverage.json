@@ -1,0 +1,18 @@
+{
+  "syntheticOnly": true,
+  "providerHomologated": false,
+  "scenarios": [
+    {
+      "id": "R1-45",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "audit excludes JWTs, secrets and commercial data"
+    },
+    {
+      "id": "R1-78",
+      "result": "EXTERNAL_PENDING",
+      "scope": "CLOUDFLARE REAL/PITR",
+      "reason": "Não disponível no desenvolvimento local; nenhum recurso Cloudflare foi alterado"
+    }
+  ]
+}

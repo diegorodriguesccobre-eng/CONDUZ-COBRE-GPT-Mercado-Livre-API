@@ -1,0 +1,94 @@
+{
+  "base": "6e595e99f2bc0a84cc216b817cf7eab779502065",
+  "historicalBase": "6252e84f11891c40ff974e6eb1217836c4365902",
+  "historicalFiles": 97,
+  "byteIdentical": 94,
+  "exceptions": [
+    "package.json",
+    "package-lock.json",
+    ".github/workflows/b3-sqlite.yml"
+  ],
+  "dependencyFilesPinned": [
+    "package.json",
+    "package-lock.json",
+    "prototype/mcp-local/package.json",
+    "prototype/mcp-local/package-lock.json"
+  ],
+  "originalVerifierPreserved": true,
+  "activationBlocked": true,
+  "candidateFiles": 184,
+  "allowedAdded": 20,
+  "allowedModified": 9,
+  "m1Base": "5f06c69dc3ace96419f4e78a9675d257cc12b45a",
+  "publishedFiles": 164,
+  "publishedByteIdentical": 155,
+  "authorizedPublishedModifications": [
+    "scripts/verify-b4-preservation.mjs",
+    "prototype/mcp-local/scripts/ci.mjs",
+    ".github/workflows/b3-sqlite.yml",
+    ".github/workflows/b4-mcp-local.yml"
+  ],
+  "m1Added": 8,
+  "m20Base": "014a2a5a49211d31bb9275e236fd2c31c1be93d8",
+  "m20PublishedFiles": 172,
+  "m20ProtectedFiles": 161,
+  "m20AuthorizedModifications": [
+    ".github/workflows/b3-sqlite.yml",
+    "scripts/verify-b4-preservation.mjs",
+    "prototype/mcp-local/tests/homologation.test.mjs"
+  ],
+  "i1Base": "f20cf44ccf401080f28ff4bb068e27d436d08f66",
+  "i1PublishedFiles": 172,
+  "i1ProtectedFiles": 162,
+  "i1Added": 6,
+  "i1AuthorizedModifications": [
+    "prototype/mcp-local/integration/composition.ts",
+    "prototype/mcp-local/integration/identity.ts",
+    "prototype/mcp-local/homologation/ports.ts",
+    "scripts/verify-b4-preservation.mjs",
+    "prototype/mcp-local/tests/homologation.test.mjs",
+    "prototype/mcp-local/recovery/model.ts",
+    "prototype/mcp-local/integration/guardian-adapter.ts",
+    "prototype/mcp-local/src/persistent-model.ts",
+    "prototype/mcp-local/scripts/ci.mjs",
+    ".github/workflows/b4-mcp-local.yml"
+  ],
+  "i1qAuthorizedPaths": [
+    "prototype/mcp-local/recovery/core.ts",
+    "prototype/mcp-local/recovery/model.ts",
+    "prototype/mcp-local/integration/guardian-adapter.ts",
+    "prototype/mcp-local/src/persistent-model.ts",
+    "prototype/mcp-local/lab/tests/boundaries.node.mjs",
+    "scripts/verify-b4-preservation.mjs",
+    "tests/b4/m21-preservation.node.mjs",
+    "prototype/mcp-local/tests/homologation.test.mjs"
+  ],
+  "i1ciAuthorizedPaths": [
+    ".github/workflows/b4-mcp-local.yml",
+    "prototype/mcp-local/scripts/ci.mjs",
+    "scripts/verify-b4-preservation.mjs",
+    "prototype/mcp-local/tests/homologation.test.mjs",
+    "tests/b4/m21-preservation.node.mjs"
+  ],
+  "historicalCountersDescribe": "validated I2 checkpoint and R145 projection; actual unchanged revision files counted separately",
+  "i2Base": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+  "i2PublishedFiles": 178,
+  "i2ProtectedFiles": 174,
+  "i2Added": 6,
+  "i2AuthorizedModifications": [
+    "prototype/mcp-local/scripts/homologation-harness.mjs",
+    "prototype/mcp-local/tests/homologation.test.mjs",
+    "scripts/verify-b4-preservation.mjs",
+    "tests/b4/m21-preservation.node.mjs"
+  ],
+  "r145Base": "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044",
+  "r145PublishedFiles": 184,
+  "r145ProtectedFiles": 180,
+  "r145AuthorizedModifications": [
+    "prototype/mcp-local/tests/recovery.test.mjs",
+    "scripts/verify-b4-preservation.mjs",
+    "tests/b4/m21-preservation.node.mjs",
+    "prototype/mcp-local/tests/homologation.test.mjs"
+  ],
+  "r145Added": 0
+}

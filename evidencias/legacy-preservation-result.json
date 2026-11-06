@@ -1,0 +1,32 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "tests/b4/preservation.node.mjs"
+  ],
+  "cwd": "/workspace/conduz-r1-45-fix",
+  "attempts": 1,
+  "exit": 0,
+  "seconds": 0.468,
+  "timeout": false,
+  "limitSeconds": 300,
+  "sourceHEAD": "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044",
+  "sourceTree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+  "candidatePatchSHA256": "f5de8e0ff81c58b034202dbc6352b94f4607d1b3e3673de1c9b044a67042e1ef",
+  "counts": {
+    "tests": 16,
+    "pass": 16,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "originalChildren": [],
+  "i2RegressionChildren": [],
+  "r145RegressionChildren": [],
+  "originalCheckoutsByteIdentical": true,
+  "originalCheckoutsSemanticIntegrity": true,
+  "localCheckoutByteIdentical": true,
+  "sourceCheckoutByteIdentical": true,
+  "passed": true
+}

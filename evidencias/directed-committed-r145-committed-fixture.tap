@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: M2.0-FIX: full published descendant retains the checkpoint and selects B4
+ok 1 - M2.0-FIX: full published descendant retains the checkpoint and selects B4
+  ---
+  duration_ms: 2292.420931
+  type: 'test'
+  ...
+# Subtest: I2 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant
+ok 2 - I2 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant
+  ---
+  duration_ms: 327.374851
+  type: 'test'
+  ...
+# Subtest: I1 fixture: 178 files mixed with the historical 172-file verifier remain refused
+ok 3 - I1 fixture: 178 files mixed with the historical 172-file verifier remain refused
+  ---
+  duration_ms: 1799.286523
+  type: 'test'
+  ...
+# Subtest: R145 fixture: working candidate selects its verifier from the fixed merged checkpoint
+ok 4 - R145 fixture: working candidate selects its verifier from the fixed merged checkpoint
+  ---
+  duration_ms: 623.881218
+  type: 'test'
+  ...
+# Subtest: R145 fixture: mixed epochs and missing revision ancestry never select a permissive verifier
+ok 5 - R145 fixture: mixed epochs and missing revision ancestry never select a permissive verifier
+  ---
+  duration_ms: 948.125327
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6884.182352

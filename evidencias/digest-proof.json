@@ -1,0 +1,10 @@
+{
+  "seed": "SYNTHETIC-R145-DIGEST-3104",
+  "digest": "HXigGTGLKu_OM_j-FMFeYJJLfHwXhv0Gh_lVhvwkAO4",
+  "source": "R1-45-A01 passed within directed 12/12 and both full recovery runs",
+  "legacySubstring": "eYJ",
+  "legacyAssertionRejects": true,
+  "currentAssertionAccepts": true,
+  "recoveryAssertionSourceSHA256": "e29db81536320fb4ab6bd98185e0e1ca3409b4833aefe9e9d45c97371db9528b",
+  "runtimeR145Inspection": "Real setup/read/revoke/deny and all 11 persisted RecoveryReference events inspected in both full recovery runs; no event filtering or replacement."
+}

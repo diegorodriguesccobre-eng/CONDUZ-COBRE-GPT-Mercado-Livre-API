@@ -1,0 +1,6 @@
+{
+  "prototype/mcp-local/tests/homologation.test.mjs": "4c37af6f26eba3af844ac3c60297e93640eadc1b134e2f21d10fb346896c7fbb",
+  "prototype/mcp-local/tests/recovery.test.mjs": "e29db81536320fb4ab6bd98185e0e1ca3409b4833aefe9e9d45c97371db9528b",
+  "scripts/verify-b4-preservation.mjs": "e5f781dccbed7171e9fb4b8f0c31e94a3f5e8d2d8f80c021fdf1bca480eabcd3",
+  "tests/b4/m21-preservation.node.mjs": "84788896776ccae165eede363c20bf1e32982ab556fc0724f46c7b7dd27facda"
+}

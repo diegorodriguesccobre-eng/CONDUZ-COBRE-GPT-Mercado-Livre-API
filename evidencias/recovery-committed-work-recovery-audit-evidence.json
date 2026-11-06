@@ -1,0 +1,81 @@
+{
+  "syntheticOnly": true,
+  "persisted": [
+    {
+      "caseId": "R1-45",
+      "source": "persisted RecoveryReference.events()",
+      "events": [
+        {
+          "event": "enrollment-simulated",
+          "sequence": 0,
+          "gateRevision": 1,
+          "root": "JrrLVyliDVitWsWbNYzEYwM1HxCVS2sYsrOQ-F5ubd8"
+        },
+        {
+          "event": "recovery-started-simulated",
+          "sequence": 0,
+          "gateRevision": 2,
+          "root": "JrrLVyliDVitWsWbNYzEYwM1HxCVS2sYsrOQ-F5ubd8"
+        },
+        {
+          "event": "recovery-completed-simulated",
+          "sequence": 0,
+          "gateRevision": 3,
+          "root": "JrrLVyliDVitWsWbNYzEYwM1HxCVS2sYsrOQ-F5ubd8"
+        },
+        {
+          "event": "mutation-fenced",
+          "sequence": 1,
+          "gateRevision": 4,
+          "root": "tcabbgg4t1xAj7NokUv2RXUQSFvX6-miAlBPKpsxZVI"
+        },
+        {
+          "event": "mutation-confirmed",
+          "sequence": 1,
+          "gateRevision": 5,
+          "root": "tcabbgg4t1xAj7NokUv2RXUQSFvX6-miAlBPKpsxZVI"
+        },
+        {
+          "event": "mutation-fenced",
+          "sequence": 2,
+          "gateRevision": 6,
+          "root": "Lif05_Ep1Ckb2TLGt902syORzztLYhNcciReefDmc-g"
+        },
+        {
+          "event": "mutation-confirmed",
+          "sequence": 2,
+          "gateRevision": 7,
+          "root": "Lif05_Ep1Ckb2TLGt902syORzztLYhNcciReefDmc-g"
+        },
+        {
+          "event": "allow",
+          "account": "account-a",
+          "subject": "zEr5MVu1lXuSwvsBXFxPs5H_Th1e0IcuE4H1MFLyXu0",
+          "permission": "read",
+          "sequence": 2,
+          "root": "Lif05_Ep1Ckb2TLGt902syORzztLYhNcciReefDmc-g"
+        },
+        {
+          "event": "revocation-fenced",
+          "sequence": 3,
+          "gateRevision": 8,
+          "root": "QFZSg_3BdKfIDE0BfN0Jm6paDUBoTK61amu4VLYmXgw"
+        },
+        {
+          "event": "mutation-confirmed",
+          "sequence": 3,
+          "gateRevision": 9,
+          "root": "QFZSg_3BdKfIDE0BfN0Jm6paDUBoTK61amu4VLYmXgw"
+        },
+        {
+          "event": "deny",
+          "account": "account-a",
+          "subject": "zEr5MVu1lXuSwvsBXFxPs5H_Th1e0IcuE4H1MFLyXu0",
+          "permission": "read",
+          "sequence": 3,
+          "root": "QFZSg_3BdKfIDE0BfN0Jm6paDUBoTK61amu4VLYmXgw"
+        }
+      ]
+    }
+  ]
+}

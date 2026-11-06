@@ -1,0 +1,231 @@
+{
+  "syntheticOnly": true,
+  "productionReady": false,
+  "administrativeMfaProven": false,
+  "realQuorumProven": false,
+  "independentReferenceProven": false,
+  "completedScenarios": [],
+  "portEvidence": [],
+  "ciContexts": [],
+  "cancellationEvidence": [],
+  "preservationRouting": [
+    {
+      "name": "full published I1 descendant",
+      "expected": "B4-I1",
+      "exit": 0,
+      "signal": null,
+      "syntheticGitFixture": true
+    },
+    {
+      "name": "I2 working candidate snapshot",
+      "expected": "B4-I2",
+      "exit": 0,
+      "signal": null,
+      "syntheticGitFixture": true,
+      "candidateSnapshot": {
+        "parent": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+        "commit": "910f3e6748bd3c1df07406f54ad630372e648567",
+        "tree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+        "startingFiles": 178,
+        "copiedPaths": [
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "changedPaths": [
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "stagedPaths": [
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "historicalSource": "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044",
+        "temporaryRepositoryOnly": true
+      }
+    },
+    {
+      "name": "mixed I1 tree and historical verifier",
+      "expected": "CANDIDATE_INVENTORY",
+      "exit": 1,
+      "signal": null,
+      "noFallback": true,
+      "syntheticGitFixture": true
+    },
+    {
+      "name": "R145 working candidate snapshot",
+      "expected": "B4-R145",
+      "exit": 0,
+      "signal": null,
+      "syntheticGitFixture": true,
+      "candidateSnapshot": {
+        "parent": "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044",
+        "commit": "ef60d3e8970f0fcfb1a5c2bc3eeaac73d6a7a21f",
+        "tree": "5885d5765c093b990233d52ab17c1fd635811053",
+        "startingFiles": 184,
+        "copiedPaths": [
+          "prototype/mcp-local/tests/recovery.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs"
+        ],
+        "changedPaths": [
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "prototype/mcp-local/tests/recovery.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "stagedPaths": [
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "prototype/mcp-local/tests/recovery.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "temporaryRepositoryOnly": true
+      }
+    },
+    {
+      "name": "R145 old verifier mixed with new bytes",
+      "expected": "B4_BASE_CHANGED:prototype/mcp-local/tests/recovery.test.mjs",
+      "exit": 1,
+      "signal": null,
+      "noFallback": true,
+      "syntheticGitFixture": true
+    },
+    {
+      "name": "R145 new verifier mixed with old recovery bytes",
+      "expected": "R145_CONTENT_CHANGED:prototype/mcp-local/tests/recovery.test.mjs",
+      "exit": 1,
+      "signal": null,
+      "noFallback": true,
+      "syntheticGitFixture": true
+    },
+    {
+      "name": "R145 missing revision ancestry",
+      "expected": "R145_BASE_DIVERGED",
+      "exit": 1,
+      "signal": null,
+      "noFallback": true,
+      "syntheticGitFixture": true
+    }
+  ],
+  "i1qCIEvidence": [],
+  "gitBatchEvidence": [],
+  "i2CommittedFixtureEvidence": [
+    {
+      "sourceHead": "910f3e6748bd3c1df07406f54ad630372e648567",
+      "sourceParent": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+      "sourceTree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+      "sourceFiles": 184,
+      "snapshot": {
+        "parent": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+        "commit": "910f3e6748bd3c1df07406f54ad630372e648567",
+        "tree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+        "startingFiles": 178,
+        "copiedPaths": [
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "changedPaths": [
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "stagedPaths": [
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "temporaryRepositoryOnly": true
+      },
+      "tests": 3,
+      "pass": 3,
+      "exit": 0,
+      "milliseconds": 4749,
+      "recursionExcluded": true
+    }
+  ],
+  "r145CommittedFixtureEvidence": [
+    {
+      "sourceHead": "ef60d3e8970f0fcfb1a5c2bc3eeaac73d6a7a21f",
+      "sourceParent": "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044",
+      "sourceTree": "5885d5765c093b990233d52ab17c1fd635811053",
+      "sourceFiles": 184,
+      "snapshot": {
+        "parent": "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044",
+        "commit": "ef60d3e8970f0fcfb1a5c2bc3eeaac73d6a7a21f",
+        "tree": "5885d5765c093b990233d52ab17c1fd635811053",
+        "startingFiles": 184,
+        "copiedPaths": [
+          "prototype/mcp-local/tests/recovery.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs"
+        ],
+        "changedPaths": [
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "prototype/mcp-local/tests/recovery.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "stagedPaths": [
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "prototype/mcp-local/tests/recovery.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "temporaryRepositoryOnly": true
+      },
+      "tests": 5,
+      "pass": 5,
+      "exit": 0,
+      "milliseconds": 6951,
+      "recursionExcluded": true
+    }
+  ]
+}

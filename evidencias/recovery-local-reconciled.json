@@ -1,0 +1,43 @@
+{
+  "command": [
+    "node",
+    "scripts/ci.mjs",
+    "run",
+    "recovery"
+  ],
+  "cwd": "/workspace/conduz-r1-45-fix/prototype/mcp-local",
+  "attempts": 1,
+  "exit": 0,
+  "seconds": 81.354,
+  "timeout": false,
+  "limitSeconds": 300,
+  "sourceHEAD": "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044",
+  "sourceTree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+  "candidatePatchSHA256": "f5de8e0ff81c58b034202dbc6352b94f4607d1b3e3673de1c9b044a67042e1ef",
+  "counts": {
+    "tests": 113,
+    "pass": 112,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 1,
+    "todo": 0
+  },
+  "originalChildren": [],
+  "i2RegressionChildren": [],
+  "r145RegressionChildren": [],
+  "originalCheckoutsByteIdentical": true,
+  "originalCheckoutsSemanticIntegrity": true,
+  "localCheckoutByteIdentical": true,
+  "sourceCheckoutByteIdentical": true,
+  "passed": true,
+  "reconciliation": {
+    "originalCollectorExpectation": 116,
+    "correctedExpectation": 113,
+    "existingCases": 102,
+    "newCases": 11,
+    "sourceCoveragePass": 101,
+    "existingPITRSkip": "R1-78",
+    "cause": "External collector arithmetic assumed nine injected Q cases; baseline has six. No source change or test rerun.",
+    "originalReportPreserved": "recovery-local-result.json"
+  }
+}

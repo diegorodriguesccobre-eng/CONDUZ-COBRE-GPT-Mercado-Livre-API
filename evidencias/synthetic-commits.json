@@ -1,0 +1,148 @@
+[
+  {
+    "sha": "910f3e6748bd3c1df07406f54ad630372e648567",
+    "tree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+    "parents": [
+      "b3df5def93688d9d68fad39a9a61e96b5c4ba437"
+    ],
+    "message": "SYNTHETIC I1 WORKING CANDIDATE ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "directed-committed-git-trace.jsonl",
+      "directed-local-git-trace.jsonl",
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ],
+    "reports": [
+      "homologation-local-homologation-test-evidence.json",
+      "directed-committed-homologation-test-evidence.json",
+      "homologation-committed-homologation-test-evidence.json",
+      "directed-local-homologation-test-evidence.json"
+    ]
+  },
+  {
+    "sha": "ef60d3e8970f0fcfb1a5c2bc3eeaac73d6a7a21f",
+    "tree": "5885d5765c093b990233d52ab17c1fd635811053",
+    "parents": [
+      "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044"
+    ],
+    "message": "SYNTHETIC R145 REVISION ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "directed-committed-git-trace.jsonl",
+      "directed-local-git-trace.jsonl",
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ],
+    "reports": [
+      "homologation-local-homologation-test-evidence.json",
+      "directed-committed-homologation-test-evidence.json",
+      "homologation-committed-homologation-test-evidence.json",
+      "directed-local-homologation-test-evidence.json"
+    ]
+  },
+  {
+    "sha": "5d95906a707fff945ab3736b330210bb085c2aa4",
+    "tree": "5885d5765c093b990233d52ab17c1fd635811053",
+    "parents": [
+      "b3df5def93688d9d68fad39a9a61e96b5c4ba437"
+    ],
+    "message": "SYNTHETIC R145 WRONG LINEAGE ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "directed-committed-git-trace.jsonl",
+      "directed-local-git-trace.jsonl",
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ]
+  },
+  {
+    "sha": "a36d4f209082ab4a6ce79cc5b21c3a1f339a10cb",
+    "tree": "8ae599ca171d07b108a40fac7a6a92625204f939",
+    "parents": [
+      "ed36da553b4dbd0c3c5d574e7db0b0d61fb1cd6d",
+      "014a2a5a49211d31bb9275e236fd2c31c1be93d8"
+    ],
+    "message": "SYNTHETIC M2.0 DAG ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ]
+  },
+  {
+    "sha": "d1ec0dfbaa0a4962ab50c151cc8a9faa9f815cc8",
+    "tree": "8ae599ca171d07b108a40fac7a6a92625204f939",
+    "parents": [
+      "a36d4f209082ab4a6ce79cc5b21c3a1f339a10cb"
+    ],
+    "message": "SYNTHETIC M2.0 DAG ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ]
+  },
+  {
+    "sha": "11eb9bd433a322ea3389a04e0d637c08e497fda4",
+    "tree": "8ae599ca171d07b108a40fac7a6a92625204f939",
+    "parents": [
+      "014a2a5a49211d31bb9275e236fd2c31c1be93d8"
+    ],
+    "message": "SYNTHETIC M2.0 DAG ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ]
+  },
+  {
+    "sha": "fb027c101f0b64b6a2d58e016160d6a7605f4940",
+    "tree": "8ae599ca171d07b108a40fac7a6a92625204f939",
+    "parents": [
+      "a36d4f209082ab4a6ce79cc5b21c3a1f339a10cb",
+      "11eb9bd433a322ea3389a04e0d637c08e497fda4"
+    ],
+    "message": "SYNTHETIC M2.0 DAG ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ]
+  },
+  {
+    "sha": "27863bf80537589c9091a837e31381c930230d82",
+    "tree": "8ae599ca171d07b108a40fac7a6a92625204f939",
+    "parents": [
+      "ed36da553b4dbd0c3c5d574e7db0b0d61fb1cd6d"
+    ],
+    "message": "SYNTHETIC M2.0 DAG ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ]
+  },
+  {
+    "sha": "87ff522632812bf203de89f6b96b9184f9483191",
+    "tree": "8ae599ca171d07b108a40fac7a6a92625204f939",
+    "parents": [
+      "6252e84f11891c40ff974e6eb1217836c4365902"
+    ],
+    "message": "SYNTHETIC M2.0 DAG ONLY",
+    "provenance": "Reconstructed from successful native Git Trace2 commit-tree arguments and fixed fixture identity/date; corroborated by successful Git operations.",
+    "traces": [
+      "homologation-committed-git-trace.jsonl",
+      "homologation-local-git-trace.jsonl"
+    ]
+  },
+  {
+    "sha": "1db1f9fd45f6913f7a2221a6c344f867937ddce5",
+    "tree": "5885d5765c093b990233d52ab17c1fd635811053",
+    "parents": [
+      "9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044"
+    ],
+    "message": "SYNTHETIC R145 COMMITTED CANDIDATE ONLY",
+    "provenance": "Direct commit-tree result; verified with cat-file in isolated disposable candidate."
+  }
+]

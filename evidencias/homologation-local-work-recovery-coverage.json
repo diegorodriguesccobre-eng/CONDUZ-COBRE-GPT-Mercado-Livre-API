@@ -1,0 +1,618 @@
+{
+  "syntheticOnly": true,
+  "providerHomologated": false,
+  "scenarios": [
+    {
+      "id": "R1-01",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "two operators, three tools, both MCP profiles"
+    },
+    {
+      "id": "R1-02",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "cross-account and identifier tampering denied"
+    },
+    {
+      "id": "R1-03",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "read/connect are independent and do not imply administration"
+    },
+    {
+      "id": "R1-04",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "confirmed revocation survives two runtime restarts and valid JWT"
+    },
+    {
+      "id": "R1-05",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "joint rollback of authority and projections, W preserved"
+    },
+    {
+      "id": "R1-06",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "projection rollback cannot override terminal tombstone"
+    },
+    {
+      "id": "R1-07",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "partial authority operator/account rollback detected"
+    },
+    {
+      "id": "R1-08",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "guardian rollback cannot override live reference"
+    },
+    {
+      "id": "R1-09",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "rollback G+A+P remains denied with W current"
+    },
+    {
+      "id": "R1-10",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "ACTIVE/READY marker cannot authorize stale state"
+    },
+    {
+      "id": "R1-11",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "deleted guardian does not bootstrap"
+    },
+    {
+      "id": "R1-12",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "enrollment substitution is rejected"
+    },
+    {
+      "id": "R1-13",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "legitimate guardian cold start resumes by current proof"
+    },
+    {
+      "id": "R1-14",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "legitimate authority restart preserves explicit grants only"
+    },
+    {
+      "id": "R1-15",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "sequence regression and same-sequence digest tampering fail"
+    },
+    {
+      "id": "R1-16",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "reference outage denies even warmed clients and persists latch"
+    },
+    {
+      "id": "R1-17",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "quota failures cannot cause allow or disable audit"
+    },
+    {
+      "id": "R1-18",
+      "result": "PASS",
+      "scope": "LOCAL: corrupção lógica identificada; páginas SQLite reais dependem de teste separado",
+      "test": "malformed projection JSON fails closed without repair"
+    },
+    {
+      "id": "R1-19",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "authority corruption cannot seed missing operators"
+    },
+    {
+      "id": "R1-20",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "guardian identity corruption remains blocked across restart"
+    },
+    {
+      "id": "R1-21",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "authentic old coherent snapshot is not current"
+    },
+    {
+      "id": "R1-22",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "concurrent updates require a classified conflict, durable winner and exact permissions"
+    },
+    {
+      "id": "R1-23",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "revocation competing with an update cannot be undone by late finalization"
+    },
+    {
+      "id": "R1-24",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "reads during pending fence deny and do not cross accounts"
+    },
+    {
+      "id": "R1-25",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "crash after durable fence retains deny after restart"
+    },
+    {
+      "id": "R1-26",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "crash after authority write leaves reference pending"
+    },
+    {
+      "id": "R1-27",
+      "result": "PASS",
+      "scope": "LOCAL: falhas após barreiras de persistência; falha física de flush não certificada",
+      "test": "durability faults at confirmation prevent false administrator ACK"
+    },
+    {
+      "id": "R1-28",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "lost confirmation is queryable and idempotent"
+    },
+    {
+      "id": "R1-29",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "same operation ID with different payload rejected"
+    },
+    {
+      "id": "R1-30",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "decision persistence failure cannot return allow"
+    },
+    {
+      "id": "R1-31",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "old recovery approval replay rejected"
+    },
+    {
+      "id": "R1-32",
+      "result": "PASS",
+      "scope": "SIMULAÇÃO: não comprova MFA/AMR/step-up Access real",
+      "test": "missing/old simulated MFA cannot reconcile"
+    },
+    {
+      "id": "R1-33",
+      "result": "PASS",
+      "scope": "SIMULAÇÃO: não comprova duas pessoas físicas reais",
+      "test": "same simulated person cannot provide two approvals"
+    },
+    {
+      "id": "R1-34",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "approval expires on concurrent head change"
+    },
+    {
+      "id": "R1-35",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "sticky recovery HOLD survives outage and return"
+    },
+    {
+      "id": "R1-36",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "cross-environment snapshot is quarantined"
+    },
+    {
+      "id": "R1-37",
+      "result": "PASS",
+      "scope": "LOCAL: mapeamento lógico; bindings/IAM de staging reais pendentes",
+      "test": "wrong account partition mapping cannot authorize"
+    },
+    {
+      "id": "R1-38",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "decision nonce is single-use, not an allow bearer"
+    },
+    {
+      "id": "R1-39",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "old checkpoint without live reference never opens"
+    },
+    {
+      "id": "R1-40",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "security protocol downgrade rejected independently of MCP profile"
+    },
+    {
+      "id": "R1-41",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "grant expiry and invalid counters deny"
+    },
+    {
+      "id": "R1-42",
+      "result": "PASS",
+      "scope": "LOCAL: decisão em voo drenada; sem cancelamento retroativo de respostas já entregues",
+      "test": "declared recovery closes and drains an in-flight decision before restore"
+    },
+    {
+      "id": "R1-43",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "partial reconciliation cannot open gate"
+    },
+    {
+      "id": "R1-44",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "lost reference history cannot be replaced by old grants"
+    },
+    {
+      "id": "R1-45",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "audit excludes JWTs, secrets and commercial data"
+    },
+    {
+      "id": "R1-46",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "ECONNRESET/timeout/refused never satisfy MCP negative helper"
+    },
+    {
+      "id": "R1-47",
+      "result": "PASS",
+      "scope": "LOCAL; suites 113/273/5/9 executadas separadamente e vinculadas no relatório",
+      "test": "harness closes clients/runtimes and local port"
+    },
+    {
+      "id": "R1-48",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "missing second administrator prevents recovery"
+    },
+    {
+      "id": "R1-49",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "cold start resumes only with live exact proof"
+    },
+    {
+      "id": "R1-50",
+      "result": "PASS",
+      "scope": "LOCAL PARCIAL: hibernação Cloudflare real não executada",
+      "test": "hibernation memory-loss model resumes only with live exact proof"
+    },
+    {
+      "id": "R1-51",
+      "result": "PASS",
+      "scope": "LOCAL PARCIAL: eviction real não executada",
+      "test": "eviction memory-loss model resumes only with live exact proof"
+    },
+    {
+      "id": "R1-52",
+      "result": "PASS",
+      "scope": "LOCAL PARCIAL: rollout Cloudflare real não executado",
+      "test": "compatible runtime reconstruction resumes only with live exact proof"
+    },
+    {
+      "id": "R1-53",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "guardian unavailability cannot bypass reference"
+    },
+    {
+      "id": "R1-54",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "reference returns without incident: re-prove and auto resume"
+    },
+    {
+      "id": "R1-55",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "durable HOLD survives rollback of READY and new runtime"
+    },
+    {
+      "id": "R1-56",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "exact current snapshot may resume with live proof"
+    },
+    {
+      "id": "R1-57",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "declared restoration even to current snapshot needs reconciliation"
+    },
+    {
+      "id": "R1-58",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "boot proof preceding revocation does not authorize next call"
+    },
+    {
+      "id": "R1-59",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "old READY/root and delayed startup observation are insufficient"
+    },
+    {
+      "id": "R1-60",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "old decision cannot be reused after revocation"
+    },
+    {
+      "id": "R1-61",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "malformed proof and account switching do not authorize"
+    },
+    {
+      "id": "R1-62",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "missing reference never becomes seq-zero automatic enrollment"
+    },
+    {
+      "id": "R1-63",
+      "result": "PASS",
+      "scope": "LIMITE DEMONSTRADO: referência confiável comprometida; impede alegação de produção",
+      "test": "LIMIT: rollback of every trusted root can reactivate old permissions"
+    },
+    {
+      "id": "R1-64",
+      "result": "PASS",
+      "scope": "LOCAL PARCIAL: separação lógica apenas; independência IAM/provedor não comprovada",
+      "test": "ordinary snapshot explicitly excludes trusted reference"
+    },
+    {
+      "id": "R1-65",
+      "result": "PASS",
+      "scope": "LOCAL: chamadas concorrentes pelo mesmo G; não representa instâncias independentes do provedor",
+      "test": "concurrent revocations require a classified conflict and exactly one durable tombstone"
+    },
+    {
+      "id": "R1-66",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "first durable revoke fence survives unknown outcome"
+    },
+    {
+      "id": "R1-67",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "decision audit fault blocks rather than leaking account data"
+    },
+    {
+      "id": "R1-68",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "technical creation with no enrollment denies and creates no grants"
+    },
+    {
+      "id": "R1-69",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "lost G reconstructed only from current W and simulated quorum"
+    },
+    {
+      "id": "R1-70",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "one admin does not stop proven restarts but cannot remove HOLD"
+    },
+    {
+      "id": "R1-71",
+      "result": "PASS",
+      "scope": "SIMULAÇÃO: capacidade privilegiada do driver, sem autenticação administrativa operacional",
+      "test": "deny-only emergency hold does not imply unilateral unlock"
+    },
+    {
+      "id": "R1-72",
+      "result": "PASS",
+      "scope": "SIMULAÇÃO: credenciamento, contingência e MFA reais não executados",
+      "test": "missing MFA/quorum cannot be bypassed by timeout"
+    },
+    {
+      "id": "R1-73",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "restored configuration cannot select another enrollment"
+    },
+    {
+      "id": "R1-74",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "two approvals do not replace missing current history"
+    },
+    {
+      "id": "R1-75",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "future approvals and generation laundering rejected"
+    },
+    {
+      "id": "R1-76",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "witness process restart preserving ledger retains revocation"
+    },
+    {
+      "id": "R1-77",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "witness regression detected against surviving G checkpoint"
+    },
+    {
+      "id": "R1-78",
+      "result": "EXTERNAL_PENDING",
+      "scope": "CLOUDFLARE REAL/PITR",
+      "reason": "Não disponível no desenvolvimento local; nenhum recurso Cloudflare foi alterado"
+    },
+    {
+      "id": "R1-79",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "unreported corruption with W unavailable never allows"
+    },
+    {
+      "id": "R1-80",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "recovery plan bound to exact root/gate/nonce"
+    },
+    {
+      "id": "R2-Q01",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "CAS assertion rejects transport, timeouts, availability and fake conflicts"
+    },
+    {
+      "id": "R2-Q02",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "CAS assertion accepts only explicit domain conflicts and one winner"
+    },
+    {
+      "id": "R2-Q03",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "R1-22: injected ECONNRESET cannot count as CAS success"
+    },
+    {
+      "id": "R2-Q04",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "R1-22: injected ETIMEDOUT cannot count as CAS success"
+    },
+    {
+      "id": "R2-Q05",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "R1-22: injected UNAVAILABLE cannot count as CAS success"
+    },
+    {
+      "id": "R2-Q06",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "R1-65: injected ECONNRESET cannot count as CAS success"
+    },
+    {
+      "id": "R2-Q07",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "R1-65: injected ETIMEDOUT cannot count as CAS success"
+    },
+    {
+      "id": "R2-Q08",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "R1-65: injected UNAVAILABLE cannot count as CAS success"
+    },
+    {
+      "id": "R2-S01",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "physical SQLite corruption is detected and cannot authorize"
+    },
+    {
+      "id": "R2-S02",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "physical offline rollback of authority and grants preserves W revocation"
+    },
+    {
+      "id": "R2-S03",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "grant expiring during durable decision wait cannot allow"
+    },
+    {
+      "id": "R2-S04",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "recovery approval expiring before finish leaves HOLD"
+    },
+    {
+      "id": "R2-S05",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "JWT extra claims do not confer account or administrator identity"
+    },
+    {
+      "id": "R2-S06",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "reference digest corruption fails closed"
+    },
+    {
+      "id": "R2-S07",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "closed mutation schema rejects privilege smuggling"
+    },
+    {
+      "id": "R2-S08",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "expired JWT is HTTP authentication failure, not MCP authorization denial"
+    },
+    {
+      "id": "R2-S09",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "reference runtime reset is not a successful administrative rejection"
+    },
+    {
+      "id": "R2-S10",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "transport-shaped envelope cannot become an approved domain error"
+    },
+    {
+      "id": "R2-S11",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "read+connect grant still cannot invoke administrative MCP tools"
+    },
+    {
+      "id": "R2-S12",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "revision history records fence before confirmation and later denial"
+    },
+    {
+      "id": "R2-S13",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "simulated quorum cannot erase a surviving newer checkpoint"
+    },
+    {
+      "id": "R2-S14",
+      "result": "PASS",
+      "scope": "LOCAL",
+      "test": "lost reference cannot be re-enrolled through an existing guardian"
+    }
+  ]
+}
