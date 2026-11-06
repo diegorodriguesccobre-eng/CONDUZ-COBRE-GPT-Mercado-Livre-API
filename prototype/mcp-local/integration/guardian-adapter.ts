@@ -1,4 +1,4 @@
-import { headSchema, fingerprint, type ReferenceHead } from '../recovery/model';
+import { headSchema, fingerprint, type ReferenceHead } from '../recovery/core';
 import { commandHash, current, reject, IntegrationFailure } from './contracts';
 import { control, type Command, type IntegrationEnv, type Principal } from './contracts';
 import { resolve } from './registry';

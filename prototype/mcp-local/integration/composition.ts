@@ -6,7 +6,7 @@ import { VAULTS, requestSchema, materialSchema, context, type Account } from '..
 import { tokenCheckpoint, type TokenCheckpoint, type ReadHooks, type ReadPhase } from '../vault/read-core';
 import { result } from '../src/server';
 import { createVaultReadHandler, type VaultToolCall } from '../vault/server';
-import { verifier } from './identity';
+import { LOCAL_INTEGRATION_PROFILE, requireIntegrationProfile, type IntegrationProfile } from './profile';
 import { check, type GuardPin } from './guardian-adapter';
 import { resolve, registry } from './registry';
 import { classifyReadFailure } from './read-failure';
@@ -108,16 +108,20 @@ async function safeError(request: Request, bytes: Uint8Array, code: Code): Promi
   } finally { await handler.close(); }
 }
 
-export async function integratedFetch(request: Request, env: IntegrationEnv): Promise<Response> {
+async function fetchWithProfile(request: Request, env: IntegrationEnv, profile: IntegrationProfile): Promise<Response> {
+  requireIntegrationProfile(profile);
   const url = new URL(request.url);
   if (env.SYNTHETIC_ONLY !== 'B4_MCP_LOCAL_ONLY' || env.SYNTHETIC_POLICY !== 'persistent' || !env.SYNTHETIC_JWKS) return reply('INTEGRATION_DEPENDENCY_UNAVAILABLE', 503);
-  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || request.headers.get('Host') !== url.host || url.hash
-    || (request.headers.has('Origin') && request.headers.get('Origin') !== url.origin)) return reply('INTEGRATION_BINDING_DENIED', 403);
+  if (!profile.acceptsIngress(request)) return reply('INTEGRATION_BINDING_DENIED', 403);
   // Owns only /mcp; public OAuth callback remains with the inherited, disabled composition.
   if (url.pathname !== '/mcp' || url.search) return reply('INTEGRATION_BINDING_DENIED', 404);
   if (!['POST', 'GET', 'DELETE'].includes(request.method)) return reply('INTEGRATION_BINDING_DENIED', 405);
   let principal: Principal;
-  try { principal = await verifier(env).authenticate(request); } catch { return reply('INTEGRATION_IDENTITY_DENIED', 401); }
+  try { principal = await profile.authenticate(request, env); }
+  catch (error) {
+    const code = errorCode(error, 'INTEGRATION_IDENTITY_DENIED');
+    return reply(code, code === 'INTEGRATION_IDENTITY_DENIED' ? 401 : 503);
+  }
   let body = new Uint8Array(); let prepared: Prepared | undefined; let ownedHandle: string | undefined;
   let operationId = crypto.randomUUID(); let command: Command | undefined;
   try {
@@ -180,4 +184,14 @@ export async function integratedFetch(request: Request, env: IntegrationEnv): Pr
     if (command) { try { return await safeError(request, body, errorCode(e)); } catch { /* Sanitized HTTP failure if encoding is unavailable. */ } }
     return reply(errorCode(e), 503);
   }
+}
+
+// A trusted constructor supplies the profile. Workers' third fetch argument is
+// ExecutionContext and must never be interpreted as identity/profile authority.
+export function createIntegratedHandler(profile: IntegrationProfile) {
+  requireIntegrationProfile(profile);
+  return (request: Request, env: IntegrationEnv): Promise<Response> => fetchWithProfile(request, env, profile);
+}
+export function integratedFetch(request: Request, env: IntegrationEnv): Promise<Response> {
+  return fetchWithProfile(request, env, LOCAL_INTEGRATION_PROFILE);
 }

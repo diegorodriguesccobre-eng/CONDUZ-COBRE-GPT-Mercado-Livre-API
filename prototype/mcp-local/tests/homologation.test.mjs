@@ -1,11 +1,12 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, renameSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { collectSnapshot, validateSnapshot, expectedSQLiteWorkflow, M1_ADDED, M1_MODIFIED, M1_BASE, B31, M20_BASE, M20_MODIFIED } from '../../../scripts/verify-b4-preservation.mjs';
-import { verifyInventory } from '../scripts/ci.mjs';
+import { collectSnapshot, readGitSnapshots, validateSnapshot, expectedSQLiteWorkflow, expectedCIDispatcher, M1_ADDED, M1_MODIFIED, M1_BASE, B31, B4, M20_BASE, M20_MODIFIED, I1_BASE, I1_CI_PATHS } from '../../../scripts/verify-b4-preservation.mjs';
+import { verifyInventory, suites } from '../scripts/ci.mjs';
 
 const project = fileURLToPath(new URL('..', import.meta.url));
 const root = resolve(project, '../..');
@@ -29,11 +30,133 @@ const complete = () => {
 const refused = (s, reason) => assert.throws(() => validateSnapshot(s), e =>
   e instanceof Error && e.constructor.name === 'PreservationFailure' && (typeof reason === 'string' ? e.message === reason : reason.test(e.message)));
 
+const gitBatchEvidence = [], batchRefs = Object.freeze([B31, B4, M1_BASE, M20_BASE, I1_BASE]);
+const batchBytes = Buffer.from([...Array.from({ length: 256 }, (_, n) => n), 0, 255, 13, 10]);
+const blobOid = bytes => createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex');
+const batchFrame = bytes => Buffer.concat([Buffer.from(blobOid(bytes) + ' blob ' + bytes.length + '\n'), bytes, Buffer.from('\n')]);
+const batchHeader = (raw, header) => Buffer.concat([Buffer.from(header + '\n'), raw.subarray(raw.indexOf(10) + 1)]);
+function syntheticBatchGit({ blobs = [batchBytes], name = 'nested/data.bin', mode = '100644', tree = x => x, batch = x => x } = {}) {
+  const calls = [], unique = [...new Map(blobs.map(bytes => [blobOid(bytes), bytes])).values()];
+  const metadata = Buffer.from(blobs.map((bytes, n) => mode + ' blob ' + blobOid(bytes) + '\t' + (n ? 'second.bin' : name) + '\0').join(''));
+  return { calls, run(args, input) {
+    calls.push({ args: [...args], input: input && Buffer.from(input) });
+    if (args[0] === 'ls-tree') {
+      assert.deepEqual(args, ['ls-tree', '-r', '-z', '--full-tree', batchRefs[calls.length - 1]]);
+      assert.equal(input, undefined); return tree(Buffer.from(metadata));
+    }
+    assert.deepEqual(args, ['cat-file', '--batch']);
+    assert.deepEqual(input, Buffer.from(unique.map(blobOid).join('\n') + '\n'));
+    return batch(Buffer.concat(unique.map(batchFrame)));
+  } };
+}
+const batchRefusal = (fake, reason) => {
+  assert.throws(() => readGitSnapshots(fake.run), error => error?.constructor.name === 'PreservationFailure' && error.message === reason);
+  assert.ok(fake.calls.length <= 6);
+  assert.ok(fake.calls.every(call => call.args[0] === 'ls-tree' || call.args[0] === 'cat-file'), 'No fallback Git command');
+};
+test('M1-BATCH: all 749 fixed-tree files equal the independent git show oracle byte for byte', () => {
+  const calls = [], started = performance.now();
+  const snapshots = readGitSnapshots((args, input) => {
+    calls.push(args);
+    return execFileSync('git', ['--no-optional-locks', '--no-replace-objects', ...args], {
+      cwd: root, input, maxBuffer: 16*1024*1024, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
+  });
+  const batchMilliseconds = performance.now() - started, oracleStarted = performance.now();
+  assert.deepEqual([...snapshots.keys()], batchRefs); assert.equal(calls.length, 6);
+  assert.deepEqual(calls.slice(0, 5), batchRefs.map(ref => ['ls-tree', '-r', '-z', '--full-tree', ref]));
+  assert.deepEqual(calls[5], ['cat-file', '--batch']);
+  let files = 0, bytes = 0;
+  for (const [ref, snapshot] of snapshots) {
+    const names = execFileSync('git', ['--no-replace-objects','ls-tree','-r','--name-only','-z',ref], { cwd: root })
+      .toString().split('\0').filter(Boolean);
+    assert.deepEqual([...snapshot.keys()], names);
+    for (const name of names) {
+      const expected = execFileSync('git', ['--no-replace-objects','show',ref + ':' + name], { cwd: root });
+      assert.deepEqual(snapshot.get(name), expected); files++; bytes += expected.length;
+    }
+  }
+  assert.equal(files, 749);
+  gitBatchEvidence.push({ files, bytes, batchGitProcesses: calls.length, oracleGitProcesses: files + 5,
+    batchMilliseconds, oracleMilliseconds: performance.now() - oracleStarted, byteIdentical: true });
+});
+test('M1-BATCH: binary, NUL, CRLF and non-UTF8 blob bytes are preserved with six Git processes', () => {
+  const fake = syntheticBatchGit(), snapshots = readGitSnapshots(fake.run);
+  assert.equal(fake.calls.length, 6);
+  for (const snapshot of snapshots.values()) assert.deepEqual(snapshot.get('nested/data.bin'), batchBytes);
+});
+test('M1-BATCH: empty blobs, executable files and literal tab/newline/UTF8 path names retain their bytes', () => {
+  const name = 'nested/açãо\tline\n.bin', fake = syntheticBatchGit({ blobs: [Buffer.alloc(0)], name, mode: '100755' });
+  for (const snapshot of readGitSnapshots(fake.run).values()) assert.deepEqual([...snapshot], [[name, Buffer.alloc(0)]]);
+});
+test('M1-BATCH: shared OIDs are read once but returned maps own independent buffers', () => {
+  const fake = syntheticBatchGit({ blobs: [batchBytes, batchBytes] }), snapshots = readGitSnapshots(fake.run);
+  assert.equal(fake.calls.length, 6); assert.equal(fake.calls.at(-1).input.toString(), blobOid(batchBytes) + '\n');
+  snapshots.get(B31).get('nested/data.bin')[0] = 255;
+  assert.deepEqual(snapshots.get(B31).get('second.bin'), batchBytes);
+  assert.deepEqual(snapshots.get(B4).get('nested/data.bin'), batchBytes);
+});
+test('M1-BATCH: every invocation reads its current Git input without a persistent cache', () => {
+  const first = syntheticBatchGit(), secondBytes = Buffer.from('different current object'), second = syntheticBatchGit({ blobs: [secondBytes] });
+  assert.deepEqual(readGitSnapshots(first.run).get(B31).get('nested/data.bin'), batchBytes);
+  assert.deepEqual(readGitSnapshots(second.run).get(B31).get('nested/data.bin'), secondBytes);
+  assert.equal(first.calls.length, 6); assert.equal(second.calls.length, 6);
+});
+for (const phase of ['ls-tree', 'cat-file']) test('M1-BATCH: Git failure at ' + phase + ' is explicit and never falls back', () => {
+  const fake = syntheticBatchGit(), original = fake.run;
+  fake.run = (args, input) => {
+    if (args[0] === phase) { fake.calls.push({ args }); throw Object.assign(new Error('SYNTHETIC_GIT_UNAVAILABLE'), { code: 'ECONNRESET' }); }
+    return original(args, input);
+  };
+  batchRefusal(fake, 'GIT_READ_FAILED'); assert.equal(fake.calls.length, phase === 'ls-tree' ? 1 : 6);
+});
+for (const [name, mutate, reason] of [
+  ['non-buffer metadata', x => x.toString(), 'GIT_OUTPUT_NOT_BUFFER'],
+  ['truncated metadata', x => x.subarray(0, -1), 'GIT_TREE_TRUNCATED'],
+  ['invalid path UTF8', () => Buffer.concat([Buffer.from('100644 blob ' + blobOid(batchBytes) + '\t'), Buffer.from([255,0])]), 'GIT_TREE_ENCODING'],
+  ['missing metadata separator', x => Buffer.from(x.toString().replace('\t',' ')), 'GIT_TREE_ENTRY'],
+  ['symlink object mode', x => Buffer.from(x.toString().replace('100644','120000')), 'GIT_TREE_ENTRY'],
+  ['gitlink object type', x => Buffer.from(x.toString().replace('100644 blob','160000 commit')), 'GIT_TREE_ENTRY'],
+  ['tree instead of blob', x => Buffer.from(x.toString().replace(' blob ',' tree ')), 'GIT_TREE_ENTRY'],
+  ['invalid OID', x => Buffer.from(x.toString().replace(blobOid(batchBytes),'z'.repeat(40))), 'GIT_TREE_ENTRY'],
+  ['duplicate path', x => Buffer.concat([x,x]), 'GIT_TREE_PATH'],
+  ['absolute path', x => Buffer.from(x.toString().replace('nested/data.bin','/data.bin')), 'GIT_TREE_PATH'],
+  ['dot-dot path', x => Buffer.from(x.toString().replace('nested/data.bin','nested/../data.bin')), 'GIT_TREE_PATH'],
+  ['dot path', x => Buffer.from(x.toString().replace('nested/data.bin','./data.bin')), 'GIT_TREE_PATH'],
+  ['empty component', x => Buffer.from(x.toString().replace('nested/data.bin','nested//data.bin')), 'GIT_TREE_PATH'],
+  ['backslash path', x => Buffer.from(x.toString().replace('nested/data.bin','nested\\data.bin')), 'GIT_TREE_PATH'],
+  ['empty path', x => Buffer.from(x.toString().replace('nested/data.bin','')), 'GIT_TREE_PATH']
+]) test('M1-BATCH: refuses ' + name, () => batchRefusal(syntheticBatchGit({ tree: mutate }), reason));
+for (const [name, mutate, reason] of [
+  ['non-buffer object output', x => x.toString(), 'GIT_OUTPUT_NOT_BUFFER'],
+  ['empty response', () => Buffer.alloc(0), 'GIT_BATCH_HEADER'],
+  ['header without newline', x => x.subarray(0,x.indexOf(10)), 'GIT_BATCH_HEADER'],
+  ['missing object', () => Buffer.from(blobOid(batchBytes) + ' missing\n'), 'GIT_OBJECT_MISSING'],
+  ['unexpected object ID', x => batchHeader(x, 'e'.repeat(40) + ' blob ' + batchBytes.length), 'GIT_BATCH_OBJECT_MISMATCH'],
+  ['object type changed', x => batchHeader(x, blobOid(batchBytes) + ' tree ' + batchBytes.length), 'GIT_BATCH_HEADER'],
+  ['negative size', x => batchHeader(x, blobOid(batchBytes) + ' blob -1'), 'GIT_BATCH_HEADER'],
+  ['noncanonical size', x => batchHeader(x, blobOid(batchBytes) + ' blob 0' + batchBytes.length), 'GIT_BATCH_HEADER'],
+  ['non-numeric size', x => batchHeader(x, blobOid(batchBytes) + ' blob NaN'), 'GIT_BATCH_HEADER'],
+  ['unsafe integer size', x => batchHeader(x, blobOid(batchBytes) + ' blob 9007199254740993'), 'GIT_OBJECT_SIZE'],
+  ['object over byte bound', x => batchHeader(x, blobOid(batchBytes) + ' blob 16777217'), 'GIT_OBJECT_SIZE'],
+  ['truncated object', x => x.subarray(0,-2), 'GIT_BATCH_TRUNCATED'],
+  ['missing object delimiter', x => x.subarray(0,-1), 'GIT_BATCH_TRUNCATED'],
+  ['incorrect delimiter', x => Buffer.concat([x.subarray(0,-1),Buffer.from('x')]), 'GIT_BATCH_DELIMITER'],
+  ['modified blob bytes', x => { x[x.indexOf(10)+1] ^= 1; return x; }, 'GIT_OBJECT_INTEGRITY'],
+  ['trailing bytes', x => Buffer.concat([x,Buffer.from('unexpected')]), 'GIT_BATCH_TRAILING'],
+  ['duplicate response', x => Buffer.concat([x,x]), 'GIT_BATCH_TRAILING']
+]) test('M1-BATCH: refuses ' + name, () => batchRefusal(syntheticBatchGit({ batch: mutate }), reason));
+test('M1-BATCH: multiple objects retain request order and a missing second response is refused', () => {
+  const other = Buffer.from('second object'), correct = syntheticBatchGit({ blobs: [batchBytes, other] });
+  for (const snapshot of readGitSnapshots(correct.run).values()) assert.deepEqual(snapshot.get('second.bin'), other);
+  batchRefusal(syntheticBatchGit({ blobs: [batchBytes, other], batch: () => Buffer.concat([batchFrame(other),batchFrame(batchBytes)]) }), 'GIT_BATCH_OBJECT_MISMATCH');
+  batchRefusal(syntheticBatchGit({ blobs: [batchBytes, other], batch: () => batchFrame(batchBytes) }), 'GIT_BATCH_HEADER');
+});
+
 test('M1-01: exactly the eight previously approved names are accepted', () => {
   assert.deepEqual(M1_ADDED, paths); assert.equal(Object.isFrozen(M1_ADDED), true);
   const r = validateSnapshot(complete());
-  assert.equal(r.candidateFiles, 172); assert.equal(r.m1Added, 8);
-  assert.equal(r.publishedByteIdentical, 160); assert.equal(r.byteIdentical, 94);
+  assert.equal(r.candidateFiles, 178); assert.equal(r.m1Added, 8);
+  assert.equal(r.publishedByteIdentical, 155); assert.equal(r.byteIdentical, 94);
   assert.deepEqual(M1_MODIFIED, ['scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/scripts/ci.mjs', '.github/workflows/b3-sqlite.yml', '.github/workflows/b4-mcp-local.yml']);
   assert.equal(Object.isFrozen(M1_MODIFIED), true);
   assert.deepEqual(r.authorizedPublishedModifications, M1_MODIFIED);
@@ -54,7 +177,7 @@ test('M1-01: all 163 other published files are protected, including former B4 ad
   let protectedFiles = 0;
   for (const path of collected.m1Base.keys()) if (path !== 'scripts/verify-b4-preservation.mjs') {
     const s = complete(); s.current.set(path, Buffer.concat([s.current.get(path), Buffer.from('\n')]));
-    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:)/);
+    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|I1_CONTENT_CHANGED:)/);
     protectedFiles++;
   }
   assert.equal(protectedFiles, 163);
@@ -104,7 +227,7 @@ const ciPath = 'prototype/mcp-local/scripts/ci.mjs';
 const sqlitePath = '.github/workflows/b3-sqlite.yml';
 const ciFiles = ['hardening.test.mjs','interoperability.test.mjs','persistence.test.mjs',
   'recovery.test.mjs','vault-isolation.test.mjs','integration.test.mjs','query-classification.test.mjs','homologation.test.mjs'].sort();
-const groupNames = ['mcp','persistence','recovery','vault','integration','buffering','regression'];
+const groupNames = ['mcp','persistence','recovery','vault','integration','homologation','buffering','regression'];
 const ciContextEvidence = [];
 function fixtureWrite(directory, path, bytes = '') {
   const file = resolve(directory, path); mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, bytes); return file;
@@ -135,7 +258,7 @@ function replaceOne(text, before, after) {
   assert.equal(text.split(before).length, 2, 'The mutation must change exactly one known location');
   return text.replace(before, after);
 }
-test('M1-02: real dispatcher accepts exactly eight named test files and all seven existing groups', () => {
+test('M1-02: real dispatcher accepts exactly eight named test files and eight explicit groups', () => {
   const r = verifyInventory(); assert.deepEqual(r.testFiles, ciFiles); assert.deepEqual(r.suiteGroups, groupNames);
   inventoryFixture(directory => assert.deepEqual(JSON.parse(inventoryProbe(directory)), r));
 });
@@ -147,12 +270,31 @@ for (const file of ciFiles) test('M1-02: CI refuses missing mandatory test ' + f
   rmSync(resolve(directory, 'prototype/mcp-local/tests/' + file)); probeRefused(directory, new RegExp(file.replaceAll('.', '\\.')));
 }));
 for (const [name, mutate, message] of [
-  ['M1 typecheck removal', text => replaceOne(text, ",['npm','exec','--','tsc','--noEmit','-p','tsconfig.homologation.json']", ''), /Missing M1 typecheck/],
-  ['M1 execution removal', text => replaceOne(text, ",['node','--test','tests/homologation.test.mjs']", ''), /Missing execution: integration\/homologation\.test\.mjs/],
-  ['M1 execution replaced by a no-op', text => replaceOne(text, "['node','--test','tests/homologation.test.mjs']", "['echo','--test','tests/homologation.test.mjs']"), /Missing M1 execution/]
+  ['M1 typecheck removal', text => replaceOne(text, ",typecheck:'tsconfig.homologation.json'", ''), /Missing M1 typecheck/],
+  ['M1 execution removal', text => replaceOne(text, "['node','--test','tests/homologation.test.mjs']", '[]'), /Missing execution: homologation\/homologation\.test\.mjs/],
+  ['M1 execution replaced by a no-op', text => replaceOne(text, "['node','--test','tests/homologation.test.mjs']", "['echo','--test','tests/homologation.test.mjs']"), /Missing M1 execution/],
+  ['required group removal', text => replaceOne(text, " homologation:{files:['homologation.test.mjs'],typecheck:'tsconfig.homologation.json',commands:[['node','--test','tests/homologation.test.mjs']]},\n", ''), /Missing required groups/],
+  ['duplicate test ownership', text => replaceOne(text, "files:['integration.test.mjs','query-classification.test.mjs']", "files:['integration.test.mjs','query-classification.test.mjs','homologation.test.mjs']"), /Duplicate test ownership/],
+  ['integration typecheck removal', text => replaceOne(text, "integration:{files:['integration.test.mjs','query-classification.test.mjs'],typecheck:'tsconfig.integration.json'", "integration:{files:['integration.test.mjs','query-classification.test.mjs']"), /Unreviewed suite commands/],
+  ['generic no-op in another group', text => replaceOne(text, "['npm','run','build:local']", "['echo','build skipped']"), /Unreviewed suite commands/],
+  ['extra successful no-op command', text => replaceOne(text, "commands:[['node','--test','tests/homologation.test.mjs']]", "commands:[['node','--test','tests/homologation.test.mjs'],['echo','BYPASS']]"), /Unreviewed suite commands/]
 ]) test('M1-02: dispatcher explicitly rejects ' + name, () => inventoryFixture(directory => {
   fixtureWrite(directory, ciPath, mutate(readFileSync(resolve(directory, ciPath), 'utf8'))); probeRefused(directory, message);
 }));
+test('M1-02: separation preserves every command, both typechecks and all six other groups', async () => {
+  const historical = collected.i1Base.get(ciPath);
+  assert.deepEqual(historical, Buffer.from(expectedCIDispatcher(collected.m1Base.get(ciPath))));
+  mkdirSync(resolve(project, 'work'), { recursive: true });
+  const directory = mkdtempSync(resolve(project, 'work/ci-command-equivalence-'));
+  try {
+    const file = fixtureWrite(directory, 'ci.mjs', historical);
+    const legacy = (await import(pathToFileURL(file).href)).suites;
+    for (const name of ['mcp','persistence','recovery','vault','buffering','regression']) assert.deepEqual(suites[name], legacy[name]);
+    const commands = s => [...(s.typecheck ? [['npm','exec','--','tsc','--noEmit','-p',s.typecheck]] : []), ...s.commands];
+    assert.deepEqual([...commands(suites.integration),...commands(suites.homologation)], commands(legacy.integration));
+    assert.deepEqual([...suites.integration.files,...suites.homologation.files], legacy.integration.files);
+  } finally { rmSync(directory,{recursive:true,force:true}); }
+});
 test('M1-02: CI still requires the independent buffering probe', () => inventoryFixture(directory => {
   rmSync(resolve(directory, 'prototype/mcp-local/scripts/prove-buffering.mjs')); probeRefused(directory, /Missing independent probe/);
 }));
@@ -161,6 +303,15 @@ test('M1-02: CI still refuses bypass of its workflow invocation', () => inventor
   fixtureWrite(directory, path, replaceOne(readFileSync(resolve(directory, path), 'utf8'),
     'run: node scripts/ci.mjs run "${{ matrix.suite }}"', 'run: true'));
   probeRefused(directory, /workflow\.includes/);
+}));
+for (const [name, mutate] of [
+  ['conditional suppression', text => replaceOne(text, 'run: node scripts/ci.mjs run "${{ matrix.suite }}"', 'if: false\n        run: node scripts/ci.mjs run "${{ matrix.suite }}"')],
+  ['soft failure', text => replaceOne(text, 'run: node scripts/ci.mjs run "${{ matrix.suite }}"', 'continue-on-error: true\n        run: node scripts/ci.mjs run "${{ matrix.suite }}"')],
+  ['unreviewed deadline', text => replaceOne(text, '    timeout-minutes: 10\n', '    timeout-minutes: 20\n')]
+]) test('M1-02: dispatcher rejects workflow ' + name, () => inventoryFixture(directory => {
+  const path = '.github/workflows/b4-mcp-local.yml';
+  fixtureWrite(directory, path, mutate(readFileSync(resolve(directory,path),'utf8')));
+  probeRefused(directory, /Unreviewed MCP workflow/);
 }));
 for (const [name, change] of [
   ['unapproved dispatcher bytes', text => text + '\n'],
@@ -220,7 +371,7 @@ for (const context of contexts.slice(0, 2)) test('M1-02: actual SQLite shell inv
   const result = JSON.parse(execFileSync('bash', ['-eu', '-o', 'pipefail', '-c', shell], {
     cwd: root, env: { ...process.env, B4_PRESERVATION: String(selected(context)) }, stdio: 'pipe', timeout: 15000
   }));
-  assert.equal(result.candidateFiles, 172); assert.equal(result.publishedByteIdentical, 160);
+  assert.equal(result.candidateFiles, 178); assert.equal(result.publishedByteIdentical, 155);
   assert.equal(result.activationBlocked, true);
 });
 test('M1-02: actual SQLite shell preserves B3 selection on the unchanged historical reference', () => {
@@ -256,7 +407,9 @@ function gitFixture(run, { ref = M20_BASE, history = 'full', install = ref === M
     GIT_AUTHOR_DATE: '2001-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2001-01-01T00:00:00Z' };
   const git = (...args) => execFileSync('git', ['--no-optional-locks', ...args], {
     cwd: repo, env: gitEnv, stdio: 'pipe', timeout: 15000 }).toString().trim();
-  const installCandidate = () => { for (const path of M20_MODIFIED) fixtureWrite(repo, path, readFileSync(resolve(root, path))); };
+  // Historical DAG fixtures must use the published f20 epoch, not the uncommitted I1 candidate.
+  const installHistoricalSelection = () => { for (const path of M20_MODIFIED) fixtureWrite(repo, path,
+    execFileSync('git', ['--no-replace-objects', 'show', I1_BASE + ':' + path], { cwd: root, stdio: 'pipe' })); };
   try {
     if (history === 'missing-checkpoint') {
       mkdirSync(repo); git('init', '--quiet'); git('fetch', '--quiet', '--no-tags', root, ref);
@@ -267,14 +420,49 @@ function gitFixture(run, { ref = M20_BASE, history = 'full', install = ref === M
     }
     // A depth-one clone contains the source HEAD, not an older checkpoint.
     git('checkout', '--quiet', '--detach', history === 'shallow' ? 'HEAD' : ref);
-    if (install) installCandidate();
-    const fixture = { repo, directory, git, installCandidate,
+    if (install) installHistoricalSelection();
+    const fixture = { repo, directory, git, installHistoricalSelection,
       commit: parents => git('commit-tree', git('rev-parse', M20_BASE + '^{tree}'),
         ...parents.flatMap(parent => ['-p', parent]), '-m', 'SYNTHETIC M2.0 DAG ONLY'),
-      checkout: commit => { git('checkout', '--quiet', '--detach', commit); installCandidate(); }
+      checkout: commit => { git('checkout', '--quiet', '--detach', commit); installHistoricalSelection(); }
     };
     return run(fixture);
   } finally { rmSync(directory, { recursive: true, force: true }); }
+}
+// Current I1 fixtures keep the verifier belonging to their 178-file tree.
+// Only this disposable repository may receive a synthetic candidate commit.
+function i1GitFixture(run, { workingTree = false, ref = 'HEAD' } = {}) {
+  return gitFixture(fixture => {
+    const { git, repo } = fixture;
+    assert.equal(git('rev-parse', '--is-shallow-repository'), 'false');
+    assert.equal(git('merge-base', '--is-ancestor', I1_BASE, 'HEAD'), '');
+    assert.deepEqual(git('ls-files', '-z').split('\0').filter(Boolean).sort(), [...collected.current.keys()].sort());
+    if (workingTree) {
+      const candidatePaths = Object.freeze([...I1_CI_PATHS, 'prototype/mcp-local/homologation/service-client.ts',
+        'prototype/mcp-local/integration/identity-core.ts', 'prototype/mcp-local/lab/tests/boundaries.node.mjs']);
+      assert.deepEqual([...candidatePaths].sort(), ['.github/workflows/b4-mcp-local.yml', 'prototype/mcp-local/scripts/ci.mjs',
+        'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs',
+        'tests/b4/m21-preservation.node.mjs', 'prototype/mcp-local/homologation/service-client.ts',
+        'prototype/mcp-local/integration/identity-core.ts', 'prototype/mcp-local/lab/tests/boundaries.node.mjs'].sort());
+      const parent = git('rev-parse', 'HEAD'), changedPaths = [];
+      for (const path of candidatePaths) {
+        const bytes = readFileSync(resolve(root, path));
+        if (!bytes.equals(execFileSync('git', ['--no-replace-objects', 'show', 'HEAD:' + path], { cwd: root, stdio: 'pipe' }))) changedPaths.push(path);
+        fixtureWrite(repo, path, bytes);
+      }
+      git('add', '--', ...candidatePaths);
+      assert.deepEqual(git('diff', '--cached', '--name-only').split('\n').filter(Boolean).sort(), changedPaths.sort());
+      const tree = git('write-tree'), commit = git('commit-tree', tree, '-p', parent, '-m', 'SYNTHETIC I1 WORKING CANDIDATE ONLY');
+      git('checkout', '--quiet', '--detach', commit);
+      assert.equal(git('rev-parse', 'HEAD^'), parent);
+      assert.equal(git('rev-parse', 'HEAD^{tree}'), tree);
+      assert.equal(git('merge-base', '--is-ancestor', I1_BASE, 'HEAD'), '');
+      assert.equal(git('status', '--porcelain'), '');
+      for (const path of candidatePaths) assert.deepEqual(readFileSync(resolve(repo, path)), readFileSync(resolve(root, path)));
+      fixture.candidateSnapshot = { parent, commit, tree, copiedPaths: [...candidatePaths], changedPaths, temporaryRepositoryOnly: true };
+    }
+    return run(fixture);
+  }, { ref, install: false });
 }
 function selection(repo, extraEnv = {}) {
   try {
@@ -290,13 +478,28 @@ function workflowFailure(result, code) {
   assert.match(result.stderr, new RegExp('(?:^|\\n)PRESERVATION_SELECTION_FAILED:' + code + '(?:\\n|$)'));
   assert.equal(result.stdout.includes('"allBaseFilesByteIdentical"'), false, 'Never fall back after a selector refusal');
 }
+function checkedB4Report(report, epoch) {
+  assert.equal(report.m20Base, M20_BASE);
+  assert.equal(report.byteIdentical, 94); assert.equal(report.activationBlocked, true);
+  if (epoch === 'historical') {
+    assert.equal(report.m20ProtectedFiles, 169); assert.equal(report.candidateFiles, 172);
+  } else if (epoch === 'i1' || epoch === 'i1-ci') {
+    assert.equal(report.m20ProtectedFiles, epoch === 'i1' ? 163 : 161); assert.equal(report.candidateFiles, 178);
+    assert.equal(report.i1Base, I1_BASE); assert.equal(report.i1PublishedFiles, 172);
+    assert.equal(report.i1ProtectedFiles, epoch === 'i1' ? 164 : 162); assert.equal(report.i1Added, 6);
+    assert.equal(report.originalVerifierPreserved, true);
+    if (epoch === 'i1-ci') assert.deepEqual(report.i1ciAuthorizedPaths, I1_CI_PATHS);
+  } else assert.fail('Unknown preservation epoch');
+}
 function checkedSelection(fixture, name, expected, extraEnv) {
   const r = selection(fixture.repo, extraEnv);
-  if (expected === 'B4' || expected === 'B3') {
+  if (expected === 'B4' || expected === 'B4-I1' || expected === 'B4-I1-CI' || expected === 'B3') {
     assert.equal(r.exit, 0, r.stderr); assert.equal(r.signal, null); const report = JSON.parse(r.stdout);
-    if (expected === 'B4') {
-      assert.equal(report.m20Base, M20_BASE); assert.equal(report.m20ProtectedFiles, 169);
-      assert.equal(report.candidateFiles, 172); assert.equal(report.byteIdentical, 94); assert.equal(report.activationBlocked, true);
+    if (expected !== 'B3') {
+      const epoch = expected === 'B4' ? 'historical' : expected === 'B4-I1' ? 'i1' : 'i1-ci';
+      checkedB4Report(report, epoch);
+      for (const wrong of ['historical','i1','i1-ci'].filter(other => other !== epoch))
+        assert.throws(() => checkedB4Report(report, wrong), { code: 'ERR_ASSERTION' });
     } else {
       assert.equal(report.base, 'f59081e223006f3eb0739d01073ed2eba824687e');
       assert.deepEqual(report.modified, []); assert.ok(Object.values(report.checks).every(value => value === true));
@@ -309,13 +512,14 @@ test('M2.0: only the three approved modifications are permitted in the 172-file 
   assert.equal(M20_BASE, '014a2a5a49211d31bb9275e236fd2c31c1be93d8');
   assert.deepEqual(M20_MODIFIED, ['.github/workflows/b3-sqlite.yml', 'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
   assert.equal(Object.isFrozen(M20_MODIFIED), true);
-  const report = validateSnapshot(complete()); assert.equal(report.m20PublishedFiles, 172); assert.equal(report.m20ProtectedFiles, 169);
+  const report = validateSnapshot(complete()); assert.equal(report.m20PublishedFiles, 172); assert.equal(report.m20ProtectedFiles, 161);
+  assert.equal(report.i1ProtectedFiles, 162);
 });
 test('M2.0: every other 169 checkpoint files still rejects an extra byte', () => {
   let count = 0;
   for (const path of collected.m20Base.keys()) if (!M20_MODIFIED.includes(path)) {
     const s = complete(); s.current.set(path, Buffer.concat([s.current.get(path), Buffer.from('\n')]));
-    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:)/); count++;
+    refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:|I1_CONTENT_CHANGED:)/); count++;
   }
   assert.equal(count, 169);
 });
@@ -357,13 +561,26 @@ test('M2.0: B4 context metadata cannot authorize an unrelated historical B3 tree
 test('M2.0: malformed external context is denied instead of interpreted as permission', () => gitFixture(f => {
   checkedSelection(f, 'malformed context', 'INVALID_CONTEXT', { B4_PRESERVATION: 'true || echo BYPASS' });
 }));
-test('M2.0-FIX: full published descendant retains the checkpoint and selects B4', () => gitFixture(f => {
+test('M2.0-FIX: full published descendant retains the checkpoint and selects B4', () => i1GitFixture(f => {
   assert.notEqual(f.git('rev-parse', 'HEAD'), M20_BASE);
   assert.equal(f.git('merge-base', '--is-ancestor', M20_BASE, 'HEAD'), '');
   assert.equal(f.git('rev-parse', '--is-shallow-repository'), 'false');
   assert.equal(f.git('cat-file', '-t', M20_BASE), 'commit');
-  checkedSelection(f, 'full published descendant', 'B4');
-}, { ref: 'HEAD', install: true }));
+  checkedSelection(f, 'full published I1 descendant', 'B4-I1');
+}, { ref: 'dccd2dd7dab1d0e99ae5f303099b6e6252cd43c7' }));
+test('I1 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant', () => i1GitFixture(f => {
+  checkedSelection(f, 'I1 working candidate snapshot', 'B4-I1-CI');
+  Object.assign(m20RoutingEvidence.at(-1), { candidateSnapshot: f.candidateSnapshot });
+}, { workingTree: true }));
+test('I1 fixture: 178 files mixed with the historical 172-file verifier remain refused', () => i1GitFixture(f => {
+  f.installHistoricalSelection();
+  const result = selection(f.repo);
+  assert.equal(result.exit, 1); assert.equal(result.signal, null); assert.equal(result.stdout.trim(), '');
+  assert.deepEqual(JSON.parse(result.stderr), { preservation: 'FAILED', code: 'CANDIDATE_INVENTORY' });
+  assert.throws(() => workflowFailure(result, 'SHALLOW_HISTORY'));
+  m20RoutingEvidence.push({ name: 'mixed I1 tree and historical verifier', expected: 'CANDIDATE_INVENTORY',
+    exit: result.exit, signal: result.signal, noFallback: true, syntheticGitFixture: true });
+}));
 test('M2.0: a genuinely shallow clone never falls back', () => gitFixture(f => {
   const sourceHead = execFileSync('git', ['--no-replace-objects', 'rev-parse', 'HEAD'], { cwd: root, stdio: 'pipe' }).toString().trim();
   assert.notEqual(sourceHead, M20_BASE);
@@ -469,19 +686,25 @@ test('M2.0: process/transport errors cannot satisfy an explicit selector refusal
   }
 });
 
-test('M1-03: only integration receives five minutes; recovery stays five and other groups three', () => {
+test('M1-03: integration and homologation independently receive five minutes; other limits remain unchanged', () => {
   const path = '.github/workflows/b4-mcp-local.yml';
   const current = readFileSync(resolve(root, path), 'utf8');
   const before = "        timeout-minutes: ${{ matrix.suite == 'recovery' && 5 || 3 }}\n";
-  const after = "        timeout-minutes: ${{ (matrix.suite == 'recovery' || matrix.suite == 'integration') && 5 || 3 }}\n";
-  assert.deepEqual(Buffer.from(replaceOne(current, after, before)), collected.m1Base.get(path));
+  const after = "        timeout-minutes: ${{ (matrix.suite == 'recovery' || matrix.suite == 'integration' || matrix.suite == 'homologation') && 5 || 3 }}\n";
+  const oldMatrix = '        suite: [mcp, persistence, recovery, vault, integration, buffering, regression]\n';
+  const newMatrix = '        suite: [mcp, persistence, recovery, vault, integration, homologation, buffering, regression]\n';
+  assert.deepEqual(Buffer.from(replaceOne(replaceOne(current, after, before), newMatrix, oldMatrix)), collected.m1Base.get(path));
   assert.match(current, /^    timeout-minutes: 10$/m);
-  const budgets = { mcp: 3, persistence: 3, recovery: 5, vault: 3, integration: 5, buffering: 3, regression: 3 };
+  const budgets = { mcp: 3, persistence: 3, recovery: 5, vault: 3, integration: 5, homologation: 5, buffering: 3, regression: 3 };
   assert.deepEqual(Object.keys(budgets), groupNames);
-  assert.equal(budgets.integration * 60, 300); assert.equal(10 * 60 - budgets.integration * 60, 300);
+  for (const name of ['integration','homologation']) {
+    assert.equal(budgets[name] * 60, 300); assert.equal(10 * 60 - budgets[name] * 60, 300);
+  }
 });
 for (const [name, change] of [
-  ['integration six minutes', text => replaceOne(text, "== 'integration') && 5", "== 'integration') && 6")],
+  ['integration six minutes', text => replaceOne(text, 'timeout-minutes: ${{ (', "timeout-minutes: ${{ matrix.suite == 'integration' && 6 || (")],
+  ['homologation six minutes', text => replaceOne(text, 'timeout-minutes: ${{ (', "timeout-minutes: ${{ matrix.suite == 'homologation' && 6 || (")],
+  ['homologation budget removed', text => replaceOne(text, " || matrix.suite == 'homologation'", '')],
   ['previous three-minute budget', text => replaceOne(text, " || matrix.suite == 'integration'", '')],
   ['general job limit changed', text => replaceOne(text, '    timeout-minutes: 10\n', '    timeout-minutes: 20\n')],
   ['audit removed', text => replaceOne(text, 'run: npm audit --audit-level=low', 'run: true')],
@@ -570,6 +793,180 @@ for (const [label, service] of [
 ]) test('M1 private port refuses ' + label, async () => {
   const p = createBoundPorts(unitBindings(service));
   await assert.rejects(() => p.reference.current(), e => e instanceof PortUnavailable && e.message === 'INTEGRATION_DEPENDENCY_UNAVAILABLE');
+});
+
+// Private-cause inspection exists only in an ignored, synthetic test view.
+// Canonical modules export no diagnostics, observer, flag or extra Error field.
+let privateCauseLab;
+async function privateLab() {
+  if (privateCauseLab) return privateCauseLab;
+  const { build } = await import('esbuild');
+  const file = resolve(project,'homologation/service-client.ts');
+  const current = readFileSync(file,'utf8');
+  const original = execFileSync('git',['--no-replace-objects','show',
+    'dccd2dd7dab1d0e99ae5f303099b6e6252cd43c7:prototype/mcp-local/homologation/service-client.ts'],{cwd:root}).toString();
+  const directory=resolve(project,'work/private-cause-unit');mkdirSync(directory,{recursive:true});
+  const prefix=`
+    let testClockId=0, testControllers=[], testObserved=[], testRequests;
+    const testTimers=new Map(), testDelays=[];
+    const setTimeout=(callback,ms)=>{const id=++testClockId;testTimers.set(id,callback);testDelays.push(ms);return id;};
+    const clearTimeout=id=>testTimers.delete(id);
+    const NativeAbortController=globalThis.AbortController;
+    class AbortController extends NativeAbortController {constructor(){super();testControllers.push(this);}}
+  `;
+  const common=`
+    export function testReset(){if(testRequests?.size||testTimers.size)throw new Error('TEST_RESOURCES_NOT_CLOSED');testControllers=[];testObserved=[];testDelays.length=0;}
+    export function testFire(){const entry=testTimers.entries().next().value;if(!entry)throw new Error('TEST_TIMER_MISSING');testTimers.delete(entry[0]);entry[1]();}
+    export function testController(){return testControllers.at(-1);}
+    export function testStats(){return {active:testRequests?.size??0,timers:testTimers.size,delays:[...testDelays],aborted:testControllers.every(x=>x.signal.aborted)};}
+  `;
+  async function compile(name,text,privateView){
+    assert.equal(text.split('const activeRequests = new Set<Request>();').length,2);
+    text=text.replace('const activeRequests = new Set<Request>();','const activeRequests = testRequests = new Set<Request>();');
+    if(privateView){
+      const anchor='privateDiagnostics.set(error, { owner, diagnostic: Object.freeze(diagnostic) });';
+      assert.equal(text.split(anchor).length,2);
+      text=text.replace(anchor,anchor+' testObserved.push(Object.freeze({...diagnostic}));');
+      text+='\nexport function testPrivate(error){return privateDiagnostics.get(error)?.diagnostic;}\nexport function testObservedRows(){return [...testObserved];}\n';
+    }
+    const outfile=resolve(directory,name+'.mjs');
+    await build({stdin:{contents:prefix+text+common,loader:'ts',resolveDir:dirname(file)},outfile,bundle:true,
+      platform:'browser',format:'esm',conditions:['workerd','browser']});
+    return import(pathToFileURL(outfile).href);
+  }
+  const candidate=await compile('candidate',current,true),baseline=await compile('baseline',original,false);
+  const outfile=resolve(directory,'public-contract.mjs');
+  await build({stdin:{contents:"export {errorCode,toolError} from './integration/contracts.ts'; export {createVaultReadHandler} from './vault/server.ts';",resolveDir:project},
+    outfile,bundle:true,platform:'browser',format:'esm',conditions:['workerd','browser']});
+  privateCauseLab={candidate,baseline,publicCore:await import(pathToFileURL(outfile).href)};return privateCauseLab;
+}
+const privateServices=service=>({identity:service,registry:service,reference:service,vaults:service});
+const privateTick=()=>new Promise(resolve=>setImmediate(resolve));
+async function capturePrivate(view,operation){
+  let error;try{await operation();}catch(value){error=value;}
+  assert.ok(error instanceof view.PortUnavailable,'Only the private closed dependency Error is accepted');
+  assert.equal(error.message,'INTEGRATION_DEPENDENCY_UNAVAILABLE');assert.equal(error.name,'PortUnavailable');
+  assert.deepEqual(Object.keys(error),['name']);
+  for(const key of ['cause','diagnostic','reason','privateCause','phase'])assert.equal(error[key],undefined);
+  return error;
+}
+async function assertPrivatePublic(error,lab){
+  async function encode(value){
+    const handler=lab.publicCore.createVaultReadHandler(async()=>lab.publicCore.toolError(lab.publicCore.errorCode(value)));
+    try{
+      const response=await handler.fetch(new Request('http://127.0.0.1/mcp',{method:'POST',headers:{'Content-Type':'application/json',
+        Accept:'application/json, text/event-stream','MCP-Protocol-Version':'2025-11-25'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'account',arguments:{account_ref:'account-a'}}})}));
+      assert.equal(response.status,200);const raw=await response.text();
+      assert.ok(!raw.includes('PRIVATE_CAUSE_CANARY'));assert.doesNotMatch(raw,/"(?:stack|cause|diagnostic|phase)"/);
+      const envelope=response.headers.get('content-type')?.includes('text/event-stream')
+        ?JSON.parse(raw.split('\n').find(x=>x.startsWith('data: ')).slice(6)):JSON.parse(raw);
+      assert.equal(envelope.result.isError,true);assert.equal(envelope.result.structuredContent,undefined);
+      assert.deepEqual(envelope.result.content,[{type:'text',text:'INTEGRATION_DEPENDENCY_UNAVAILABLE'}]);return envelope;
+    }finally{await handler.close();}
+  }
+  assert.deepEqual(await encode(error),await encode(new lab.baseline.PortUnavailable()));
+}
+function assertPrivateClosed(view,error,cause,phase){
+  const d=view.testPrivate(error);assert.equal(Object.isFrozen(d),true);
+  assert.deepEqual(Object.keys(d).sort(),['cause','phase','port','method','deadlineMs','elapsedMs'].sort());
+  assert.equal(d.cause,cause);assert.equal(d.phase,phase);
+  assert.equal(d.port,'reference');assert.equal(d.method,'current');assert.equal(d.deadlineMs,1000);
+  assert.ok(Number.isFinite(d.elapsedMs)&&d.elapsedMs>=0);
+  assert.deepEqual(view.testStats().active,0);assert.equal(view.testStats().timers,0);assert.equal(view.testStats().aborted,true);
+  const forbidden=/PRIVATE_CAUSE_CANARY|SYNTHETIC_ACCESS|SYNTHETIC_REFRESH|"(?:stack|request|response|headers|args)"\s*:/;
+  assert.doesNotMatch(JSON.stringify(d),forbidden);
+  assert.match(JSON.stringify({...d,request:{body:"PRIVATE_CAUSE_CANARY"}}),forbidden);
+}
+const privateCauseCases=[
+  ...[302,401,503].map(status=>['HTTP '+status,'http_status','status',()=>({fetch:async()=>new Response('PRIVATE_CAUSE_CANARY',{status})})]),
+  ['content type missing','content_type','content_type',()=>({fetch:async()=>new Response(new Uint8Array([123,125]))})],
+  ['content type wrong','content_type','content_type',()=>({fetch:async()=>new Response('{}',{headers:{'Content-Type':'text/plain'}})})],
+  ['body reader failure','body_read','body',()=>({fetch:async()=>new Response(new ReadableStream({start(c){c.error(new Error('PRIVATE_CAUSE_CANARY'));}}),{headers:{'Content-Type':'application/json'}})})],
+  ['body size refusal','body_read','body',()=>({fetch:async()=>new Response('x'.repeat(16385),{headers:{'Content-Type':'application/json'}})})],
+  ['invalid JSON','json','json',()=>({fetch:async()=>new Response('{PRIVATE_CAUSE_CANARY',{headers:{'Content-Type':'application/json'}})})],
+  ['envelope false','envelope','envelope',()=>({fetch:async()=>Response.json({ok:false,value:'PRIVATE_CAUSE_CANARY'})})],
+  ['envelope extra field','envelope','envelope',()=>({fetch:async()=>Response.json({ok:true,value:null,private:'PRIVATE_CAUSE_CANARY'})})],
+  ['opaque primitive rejection','transport','fetch',()=>({fetch:async()=>{throw 'PRIVATE_CAUSE_CANARY';}})],
+  ['response getter failure','unexpected','status',()=>({fetch:async()=>({get ok(){throw new Error('PRIVATE_CAUSE_CANARY');}})})],
+  ['header getter failure','unexpected','content_type',()=>({fetch:async()=>({ok:true,headers:{get(){throw new Error('PRIVATE_CAUSE_CANARY');}}})})],
+  ['cleanup failure','unexpected','cleanup',()=>{let reads=0;const response=Response.json({ok:true,value:null});return {fetch:async()=>({ok:true,headers:response.headers,
+    get body(){if(++reads===1)return response.body;throw new Error('PRIVATE_CAUSE_CANARY');}})};}]
+];
+for(const [label,cause,phase,service]of privateCauseCases)test('M1-PORTDIAG: '+label+' stays private and preserves public MCP',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();const call=v.createReadServiceClient(privateServices(service()));
+  const error=await capturePrivate(v,()=>call('reference','current',null));assertPrivateClosed(v,error,cause,phase);await assertPrivatePublic(error,lab);
+});
+for(const kind of ['ECONNRESET','ETIMEDOUT','AbortError','INTEGRATION_READ_DENIED'])test('M1-PORTDIAG: untrusted '+kind+' cannot choose an internal cause or authorization result',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();let reads=0;
+  const forged=Object.fromEntries(['message','code','name','stack'].map(key=>[key,null]));
+  for(const key of Object.keys(forged))Object.defineProperty(forged,key,{get(){reads++;throw new Error('PRIVATE_CAUSE_CANARY');}});
+  const call=v.createReadServiceClient(privateServices({fetch:async()=>{throw forged;}}));const error=await capturePrivate(v,()=>call('reference','current',null));
+  assertPrivateClosed(v,error,'transport','fetch');assert.equal(reads,0);await assertPrivatePublic(error,lab);
+});
+test('M1-PORTDIAG: a previous invocation cannot forge the current failure category',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();const first=v.createReadServiceClient(privateServices({fetch:async()=>new Response(null,{status:503})}));
+  const old=await capturePrivate(v,()=>first('reference','current',null));assert.equal(v.testPrivate(old).cause,'http_status');
+  const second=v.createReadServiceClient(privateServices({fetch:async()=>{throw old;}}));const error=await capturePrivate(v,()=>second('reference','current',null));
+  assert.notEqual(error,old);assertPrivateClosed(v,error,'transport','fetch');await assertPrivatePublic(error,lab);
+});
+test('M1-PORTDIAG: a publicly constructed Error does not acquire private authority',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();const forged=new v.PortUnavailable();assert.equal(v.testPrivate(forged),undefined);
+  const call=v.createReadServiceClient(privateServices({fetch:async()=>{throw forged;}}));const e=await capturePrivate(v,()=>call('reference','current',null));
+  assertPrivateClosed(v,e,'transport','fetch');await assertPrivatePublic(e,lab);
+});
+test('M1-PORTDIAG: unexpected argument serialization stays denied and closes resources',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();let invoked=0;const args={};args.self=args;
+  const call=v.createReadServiceClient(privateServices({fetch:async()=>{invoked++;return Response.json({ok:true,value:null});}}));
+  const e=await capturePrivate(v,()=>call('reference','current',args));assertPrivateClosed(v,e,'unexpected','request');assert.equal(invoked,0);await assertPrivatePublic(e,lab);
+});
+test('M1-PORTDIAG: real owned cancellation differs from a forged AbortError',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();const call=v.createReadServiceClient(privateServices({fetch:request=>new Promise((_,reject)=>{
+    request.signal.addEventListener('abort',()=>reject(new Error('PRIVATE_CAUSE_CANARY')),{once:true});})}));
+  const pending=call('reference','current',null);await privateTick();v.testController().abort();const e=await capturePrivate(v,()=>pending);
+  assertPrivateClosed(v,e,'abort','fetch');await assertPrivatePublic(e,lab);
+});
+for(const [port,method,budget]of [['reference','current',1000],['reference','permissions',3000]])test('M1-PORTDIAG: owned deadline retains exactly '+budget+' ms and wins abort races',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();let aborted=false;const call=v.createReadServiceClient(privateServices({fetch:request=>new Promise((_,reject)=>{
+    request.signal.addEventListener('abort',()=>{aborted=true;reject({code:'INTEGRATION_READ_DENIED'});},{once:true});})}));
+  const pending=call(port,method,null);await privateTick();assert.deepEqual(v.testStats().delays,[budget]);v.testFire();const e=await capturePrivate(v,()=>pending);
+  const d=v.testPrivate(e);assert.equal(d.cause,'deadline');assert.equal(d.phase,'fetch');assert.equal(d.deadlineMs,budget);assert.equal(d.method,method);
+  assert.equal(aborted,true);assert.equal(v.testStats().active,0);assert.equal(v.testStats().timers,0);await assertPrivatePublic(e,lab);
+});
+test('M1-PORTDIAG: own deadline during body consumption remains fail closed',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();let cancelled=false;const call=v.createReadServiceClient(privateServices({fetch:async()=>new Response(new ReadableStream({
+    cancel(){cancelled=true;}}),{headers:{'Content-Type':'application/json'}})}));
+  const pending=call('reference','current',null);await privateTick();v.testFire();const e=await capturePrivate(v,()=>pending);
+  assertPrivateClosed(v,e,'deadline','body');await privateTick();assert.equal(cancelled,true);await assertPrivatePublic(e,lab);
+});
+test('M1-PORTDIAG: a late response remains cancelled, never becomes data, and releases its Request',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();let deliver,cancelled=false;
+  const call=v.createReadServiceClient(privateServices({fetch:()=>new Promise(resolve=>{deliver=resolve;})}));
+  const pending=call('reference','current',null);await privateTick();v.testFire();const e=await capturePrivate(v,()=>pending);
+  assertPrivateClosed(v,e,'deadline','fetch');deliver(new Response(new ReadableStream({cancel(){cancelled=true;}}),{headers:{'Content-Type':'application/json'}}));
+  await privateTick();assert.equal(cancelled,true);assert.ok(v.testObservedRows().some(x=>x.cause==='abort'&&x.phase==='late-response'));
+  assert.equal(v.testStats().active,0);assert.equal(v.testStats().timers,0);await assertPrivatePublic(e,lab);
+});
+for(const [label,make]of [['configuration',()=>new Proxy({},{ownKeys(){throw new Error('PRIVATE_CAUSE_CANARY');}})],['capability',()=>null]])
+ test('M1-PORTDIAG: invalid '+label+' produces no public diagnostic fields',async()=>{
+  const lab=await privateLab(),v=lab.candidate;v.testReset();let e;
+  if(label==='configuration')e=await capturePrivate(v,()=>v.createReadServiceClient(make()));
+  else{const call=v.createReadServiceClient(privateServices(successPort));e=await capturePrivate(v,()=>call('reference','admin',null));}
+  assert.equal(v.testPrivate(e).cause,'unexpected');assert.equal(v.testPrivate(e).phase,label);assert.equal(v.testPrivate(e).port,null);await assertPrivatePublic(e,lab);
+ });
+test('M1-PORTDIAG: successful values stay identical to the prior client and carry no diagnostic',async()=>{
+  const lab=await privateLab();for(const value of [null,{safe:true},['read']]){
+    const results=[];for(const v of [lab.baseline,lab.candidate]){v.testReset();const call=v.createReadServiceClient(privateServices({fetch:async()=>Response.json({ok:true,value})}));
+      results.push(await call('reference','current',null));assert.equal(v.testStats().active,0);assert.equal(v.testStats().timers,0);assert.equal(v.testStats().aborted,true);}
+    assert.deepEqual(results[0],results[1]);
+  }
+});
+test('M1-PORTDIAG: canonical public artifacts expose no private reader, sink, flag or Error extension',async()=>{
+  const {build}=await import('esbuild');const artifacts=await build({absWorkingDir:project,entryPoints:['homologation/worker.ts'],bundle:true,format:'esm',platform:'browser',
+    conditions:['workerd','browser'],external:['cloudflare:workers'],metafile:true,write:false,outfile:resolve(project,'work/private-public-inspection.mjs')});
+  assert.deepEqual(Object.values(artifacts.metafile.outputs).flatMap(x=>x.exports),['default']);
+  for(const output of artifacts.outputFiles)assert.doesNotMatch(output.text,/testPrivate|testObservedRows|testController|testFire|__mcpResponseDiag|mutationSchema|recoveryPlanSchema|simulatedMfa|updateSchema|revokeSchema/);
+  const real=await import('../work/homologation/ports-library.mjs');assert.deepEqual(Object.keys(real).sort(),['LOCAL_MODE','PORT_DEADLINE_MS','PortUnavailable','createBoundPorts','registry']);
+  const error=new real.PortUnavailable();assert.deepEqual(Object.keys(error),['name']);for(const key of ['cause','diagnostic','reason','phase'])assert.equal(error[key],undefined);
 });
 
 // GC belongs to isolated Node children, never to the whole workerd suite or production.
@@ -1051,8 +1448,30 @@ test('M1 public build exports only the handler and excludes private fixtures and
   assert.equal(report.deployAuthorized, false);
   assert.ok(report.publicInputs.every(x => !x.includes('tests/fixtures/') && !x.includes('scripts/') && !x.endsWith('recovery/storage.ts')));
 });
+// Explicitly enrolled through this already-required CI test file. No discovery,
+// workflow mutation, retry or additional privilege is involved.
+const i1qCIEvidence = [];
+const i1qSuites = Object.freeze([
+  Object.freeze({ file: 'lab/tests/boundaries.node.mjs', expectedTests: 62 }),
+  Object.freeze({ file: '../../tests/b4/m21-preservation.node.mjs', expectedTests: 51 })
+]);
+for (const suite of i1qSuites) test('I1-Q CI runs all tests in ' + suite.file, { timeout: 45000 }, () => {
+  const directory=resolve(project,'work/i1q-ci'); mkdirSync(directory,{recursive:true});
+  const childEnv={...process.env}; delete childEnv.NODE_TEST_CONTEXT;
+  const started=performance.now();
+  const stdout=execFileSync(process.execPath, ['--test', '--test-reporter=tap', suite.file], {
+    cwd:project, env:childEnv, stdio:['ignore','pipe','pipe'], timeout:40000, maxBuffer:16*1024*1024
+  }).toString();
+  writeFileSync(resolve(directory,suite.file.includes('boundaries')?'boundaries.tap':'preservation.tap'),stdout);
+  const count=name=>{ const matches=[...stdout.matchAll(new RegExp('^# '+name+' (\\d+)$','gm'))];
+    assert.equal(matches.length,1,'Exactly one child summary is required');return Number(matches[0][1]); };
+  assert.equal(count('tests'),suite.expectedTests); assert.equal(count('pass'),suite.expectedTests);
+  for (const name of ['fail','cancelled','skipped','todo']) assert.equal(count(name),0);
+  const row={file:suite.file,tests:count('tests'),pass:count('pass'),exit:0,milliseconds:Math.round(performance.now()-started)};
+  i1qCIEvidence.push(row); console.log('I1Q_CI_SUITE '+JSON.stringify(row));
+});
 after(() => writeFileSync(resolve(project, 'work/homologation/test-evidence.json'), JSON.stringify({
   syntheticOnly: true, productionReady: false, administrativeMfaProven: false, realQuorumProven: false,
   independentReferenceProven: false, completedScenarios: evidence, portEvidence, ciContexts: ciContextEvidence, cancellationEvidence,
-  preservationRouting: m20RoutingEvidence
+  preservationRouting: m20RoutingEvidence, i1qCIEvidence, gitBatchEvidence
 }, null, 2) + '\n'));

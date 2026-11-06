@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readdirSync,readFileSync,existsSync} from 'node:fs';
 import {spawn} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const sub=fileURLToPath(new URL('..',import.meta.url)),root=resolve(sub,'../..');
@@ -9,17 +10,22 @@ export const suites={
  persistence:{files:['persistence.test.mjs'],typecheck:'tsconfig.persistence.json',commands:[['node','--test','tests/persistence.test.mjs']]},
  recovery:{files:['recovery.test.mjs'],typecheck:'tsconfig.recovery.json',commands:[['node','--test','tests/recovery.test.mjs']]},
  vault:{files:['vault-isolation.test.mjs'],typecheck:'tsconfig.vault.json',commands:[['node','--test','tests/vault-isolation.test.mjs']]},
- integration:{files:['integration.test.mjs','query-classification.test.mjs','homologation.test.mjs'],typecheck:'tsconfig.integration.json',commands:[['node','--test','tests/integration.test.mjs','tests/query-classification.test.mjs'],['npm','exec','--','tsc','--noEmit','-p','tsconfig.homologation.json'],['node','--test','tests/homologation.test.mjs']]},
+ integration:{files:['integration.test.mjs','query-classification.test.mjs'],typecheck:'tsconfig.integration.json',commands:[['node','--test','tests/integration.test.mjs','tests/query-classification.test.mjs']]},
+ homologation:{files:['homologation.test.mjs'],typecheck:'tsconfig.homologation.json',commands:[['node','--test','tests/homologation.test.mjs']]},
  buffering:{files:[],typecheck:'tsconfig.integration.json',commands:[['node','scripts/prove-buffering.mjs']]},
  regression:{files:[],commands:[['npm','run','typecheck'],['npm','test'],['node','scripts/tooling.mjs','test','--config','vitest.b3.config.ts'],['npm','run','test:registry'],['node','--test','tests/b4/preservation.node.mjs'],['node','scripts/verify-b4-preservation.mjs'],['node','scripts/audit-cloudflare-bundles.mjs'],['npm','run','audit:workspace']]}
 };
+const suitePlanSHA256='083773dbfa40dc7ca92fb95b31207ccddd1243a6f2edb4dc390e413118cbf2fa';
+const workflowSHA256='3af89bf098982f127eb35312de8bf35b363c92b09fb5058fddc32bb0cb5f9e33';
 export function verifyInventory(){
  assert.equal(process.version,'v24.22.1','Unreviewed Node runtime');assert.equal(process.versions.undici,'7.30.1');
- const expected=Object.values(suites).flatMap(s=>s.files).sort();assert.equal(new Set(expected).size,expected.length);
+ assert.deepEqual(Object.keys(suites),['mcp','persistence','recovery','vault','integration','homologation','buffering','regression'],'Missing required groups');
+ const expected=Object.values(suites).flatMap(s=>s.files).sort();assert.equal(new Set(expected).size,expected.length,'Duplicate test ownership');
  const actual=readdirSync(resolve(sub,'tests'),{recursive:true}).filter(n=>n.endsWith('.test.mjs')).map(n=>n.replaceAll('\\','/')).sort();assert.deepEqual(actual,expected);
  for(const [name,s] of Object.entries(suites))for(const file of s.files)assert.ok(s.commands.some(args=>args.includes('tests/'+file)),'Missing execution: '+name+'/'+file);
- assert.ok(suites.integration.commands.some(args=>JSON.stringify(args)==='["npm","exec","--","tsc","--noEmit","-p","tsconfig.homologation.json"]'),'Missing M1 typecheck');
- assert.ok(suites.integration.commands.some(args=>JSON.stringify(args)==='["node","--test","tests/homologation.test.mjs"]'),'Missing M1 execution');
+ assert.equal(suites.homologation.typecheck,'tsconfig.homologation.json','Missing M1 typecheck');
+ assert.ok(suites.homologation.commands.some(args=>JSON.stringify(args)==='["node","--test","tests/homologation.test.mjs"]'),'Missing M1 execution');
+ assert.equal(createHash('sha256').update(JSON.stringify(suites)).digest('hex'),suitePlanSHA256,'Unreviewed suite commands');
  for(const n of ['scripts/prove-buffering.mjs','tests/fixtures/buffering-worker.ts'])assert.ok(existsSync(resolve(sub,n)),'Missing independent probe');
  assert.ok(existsSync(resolve(root,'tests/b4/preservation.node.mjs')));
  const workflow=readFileSync(resolve(root,'.github/workflows/b4-mcp-local.yml'),'utf8');
@@ -27,6 +33,7 @@ export function verifyInventory(){
  assert.ok(workflow.includes('run: node scripts/ci.mjs run "${{ matrix.suite }}"'));
  assert.match(workflow,/node-version: '24\.22\.1'/);assert.match(workflow,/contents: read/);assert.match(workflow,/persist-credentials: false/);
  assert.doesNotMatch(workflow,/pull_request_target|secrets\.|(?:contents|id-token):\s*write|wrangler deploy/);
+ assert.equal(createHash('sha256').update(workflow).digest('hex'),workflowSHA256,'Unreviewed MCP workflow');
  return {testFiles:actual,suiteGroups:Object.keys(suites),independentBufferingCases:14,rootPreservationTests:true};
 }
 async function command(args,cwd){
