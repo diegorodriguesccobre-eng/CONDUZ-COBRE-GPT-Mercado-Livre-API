@@ -5,7 +5,7 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSyn
 import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectSnapshot, validateSnapshot, I1_BASE, I1_ADDED, I1_MODIFIED, I1Q_PATHS, I1_CI_PATHS } from '../../scripts/verify-b4-preservation.mjs';
+import { collectSnapshot, validateSnapshot, I1_BASE, I1_ADDED, I1_MODIFIED, I1Q_PATHS, I1_CI_PATHS, I2_BASE, I2_ADDED, I2_MODIFIED } from '../../scripts/verify-b4-preservation.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const original = collectSnapshot(root), copy = () => ({ ...original, current: new Map(original.current), i1Base: new Map(original.i1Base) });
@@ -24,7 +24,7 @@ test('I1 preservation accepts only six additions/ten exact transformations at th
   assert.deepEqual(I1_ADDED, added); assert.deepEqual(I1_MODIFIED, modified);
   assert.ok(Object.isFrozen(I1_ADDED) && Object.isFrozen(I1_MODIFIED));
   const r = validateSnapshot(copy());
-  assert.equal(r.candidateFiles, 178); assert.equal(r.i1ProtectedFiles, 162); assert.equal(r.i1Added, 6);
+  assert.equal(r.candidateFiles, 184); assert.equal(r.i1ProtectedFiles, 162); assert.equal(r.i1Added, 6);
   assert.equal(r.byteIdentical, 94); assert.equal(r.activationBlocked, true); assert.equal(r.originalVerifierPreserved, true);
   assert.deepEqual(r.exceptions, ['package.json','package-lock.json','.github/workflows/b3-sqlite.yml']);
 });
@@ -37,10 +37,11 @@ for (const path of [...added,...modified]) {
   });
   test('I1 required file cannot be missing: ' + path, () => { const s = copy(); s.current.delete(path); refused(s, /^CANDIDATE_INVENTORY$/); });
 }
-test('I1 all other 162 main files remain byte-for-byte protected', () => {
+test('I1 all other 162 main files remain protected by bytes or a closed I2 transformation', () => {
   let count = 0;
   for (const [path, bytes] of original.i1Base) if (!modified.includes(path)) {
-    assert.deepEqual(original.current.get(path), bytes);
+    if (I2_MODIFIED.includes(path)) assert.deepEqual(original.i2Base.get(path), bytes);
+    else assert.deepEqual(original.current.get(path), bytes);
     const s = copy(); s.current.set(path, Buffer.concat([bytes, Buffer.from('\n')]));
     refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:|I1_PUBLISHED_CHANGED:)/);
     count++;
@@ -71,7 +72,7 @@ test('I1 base matches the original Git tree independently of the verifier counte
     const current = readFileSync(resolve(root,path));
     if (!current.equals(expected)) changed.push(path);
   }
-  assert.deepEqual(changed.sort(), [...modified].sort());
+  assert.deepEqual(changed.sort(), [...new Set([...modified, ...I2_MODIFIED.filter(p => paths.includes(p))])].sort());
   assert.equal(sha(readFileSync(resolve(root,'scripts/verify-b3-preservation.mjs'))),
     sha(execFileSync('git',['show',I1_BASE+':scripts/verify-b3-preservation.mjs'], { cwd: root })));
 });
@@ -130,4 +131,41 @@ for (const [name, mutate] of [
   const s=copy(), path='prototype/mcp-local/tests/homologation.test.mjs', text=s.current.get(path).toString(), changed=mutate(text);
   assert.notEqual(changed,text,'The mutation must actually affect the CI bridge');
   s.current.set(path,Buffer.from(changed)); refused(s,/^I1_CONTENT_CHANGED:/);
+});
+
+
+test('I2 fixed merged checkpoint permits exactly six additions and four transformations', () => {
+  assert.equal(I2_BASE, 'b3df5def93688d9d68fad39a9a61e96b5c4ba437');
+  assert.equal(I2_ADDED.length, 6); assert.equal(I2_MODIFIED.length, 4);
+  assert.ok(Object.isFrozen(I2_ADDED) && Object.isFrozen(I2_MODIFIED));
+  assert.equal(new Set([...I2_ADDED,...I2_MODIFIED]).size, 10);
+  const r = validateSnapshot(copy());
+  assert.equal(r.i2PublishedFiles, 178); assert.equal(r.candidateFiles, 184);
+  assert.equal(r.i2ProtectedFiles, 174); assert.equal(r.byteIdentical, 94);
+  for (const [path,bytes] of original.i2Base) if (!I2_MODIFIED.includes(path)) assert.deepEqual(original.current.get(path),bytes);
+});
+test('I2 preserves every I1 content pin and normalized self-hash declaration', () => {
+  const path='scripts/verify-b4-preservation.mjs';
+  const baseline=execFileSync('git',['--no-replace-objects','show',I2_BASE+':'+path],{cwd:root}).toString();
+  const current=readFileSync(resolve(root,path),'utf8');
+  for (const pattern of [/^const I1_VERIFIER_HASH = '[a-f0-9]{64}';$/m,/const I1_CONTENT = Object.freeze\(\{[\s\S]*?\}\);/])
+    assert.equal(current.match(pattern)?.[0],baseline.match(pattern)?.[0]);
+  const legacy = baseline.slice(baseline.indexOf('export function validateSnapshot(s) {'),
+    baseline.indexOf('if (process.argv[1] && resolve(process.argv[1])'))
+    .replace('export function validateSnapshot(s) {','function validateI1Snapshot(s) {');
+  assert.ok(current.includes(legacy), 'Historical I1 validator body must stay unchanged');
+  assert.deepEqual(original.current.get('prototype/mcp-local/integration/identity-core.ts'),original.i2Base.get('prototype/mcp-local/integration/identity-core.ts'));
+});
+test('I2 content, ancestry, inventory and its own digest reject unapproved changes', () => {
+  for (const path of [...I2_ADDED,...I2_MODIFIED]) {
+    const s=copy();s.current.set(path,Buffer.concat([s.current.get(path),Buffer.from('\n')]));
+    refused(s,/^(?:I2_CONTENT_CHANGED:|I1_CONTENT_CHANGED:|M1_PUBLISHED_CHANGED:)/);
+    const missing=copy();missing.current.delete(path);refused(missing,/^CANDIDATE_INVENTORY$/);
+  }
+  refused({...copy(),i2Ancestor:false},/^I2_BASE_DIVERGED$/);
+  const s=copy();s.i2Base=new Map(original.i2Base);s.i2Base.delete('src/b3/adapter.ts');refused(s,/^I2_BASE_INVENTORY$/);
+  const v=copy(),path='scripts/verify-b4-preservation.mjs';
+  v.current.set(path,Buffer.from(v.current.get(path).toString().replace(/^const I2_VERIFIER_HASH = '[a-f0-9]{64}';$/m,
+    "const I2_VERIFIER_HASH = '"+'f'.repeat(64)+"';")));
+  refused(v,/^I1_CONTENT_CHANGED:scripts\/verify-b4-preservation\.mjs$/);
 });

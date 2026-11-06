@@ -21,7 +21,7 @@ const backendObjects = {
 };
 // Node-only privileged test driver. Never imported by the public Worker build.
 // The existing simulated approvals are laboratory inputs, not evidence of MFA or real quorum.
-export async function createHomologationFixture() {
+export async function createHomologationFixture({ identityRuntime } = {}) {
   const keyPair = await generateKeyPair('RS256');
   const materials = Object.fromEntries(['a','b'].map(s => ['account-' + s, {
     key: randomBytes(32).toString('base64url'),
@@ -38,10 +38,15 @@ export async function createHomologationFixture() {
     let runtime; let front; let frontRuntime;
     const backend = await startLocal({}, {
       createKeyPair: async () => keyPair,
-      configureRuntime: options => ({ ...options, scriptPath: resolve(project, 'work/homologation/backend.mjs'),
+      configureRuntime: options => {
+        const backendOptions = { ...options, scriptPath: resolve(project, 'work/homologation/backend.mjs'),
         resourcePersistencePath: path, durableObjects: backendObjects,
-        bindings: { ...options.bindings, SYNTHETIC_POLICY: 'persistent', SYNTHETIC_VAULT_MATERIAL: materials } }),
-      createRuntime: options => { runtime = new Miniflare(options); return runtime; }
+        bindings: { ...options.bindings, SYNTHETIC_POLICY: 'persistent', SYNTHETIC_VAULT_MATERIAL: materials } };
+        return identityRuntime ? identityRuntime.configureBackend(backendOptions) : backendOptions;
+      },
+      createRuntime: options => {
+        runtime = new Miniflare(options); identityRuntime?.onRuntime(runtime); return runtime;
+      }
     });
     try {
       const stub = async (binding, name) => {
@@ -99,7 +104,10 @@ export async function createHomologationFixture() {
               timer = setTimeout(done, 2000); shutdown.signal.addEventListener('abort', done, { once: true });
             });
             if (fault) throw new Error('PRIVATE_INJECTED_' + fault);
-            const response = Response.json({ ok: true, value: plain(await methods[port][parts[2]](body.args)) });
+            const response = port === 'identity' && identityRuntime
+              ? await identityRuntime.fetch(new Request(request.url, { method: 'POST', headers: request.headers,
+                body: JSON.stringify(body), signal: request.signal }), runtime)
+              : Response.json({ ok: true, value: plain(await methods[port][parts[2]](body.args)) });
             record.result = 'completed'; return response;
           } catch { if (record) record.result = 'unavailable'; return Response.json({ ok: false }, { status: 503 }); }
           finally { if (record) record.durationMs = Date.now() - record.started; }

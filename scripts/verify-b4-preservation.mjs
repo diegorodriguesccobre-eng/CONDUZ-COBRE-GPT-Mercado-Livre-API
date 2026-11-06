@@ -66,6 +66,34 @@ const I1_CONTENT = Object.freeze({
   'prototype/mcp-local/homologation/ports.ts': '491af00348dd0cab9bd45a98b75e8100611c88510c0724494f367dfd4e0c3822',
   'prototype/mcp-local/tests/homologation.test.mjs': '9cbe38dbddd554f899df0e37efd08585fa6ec077c717b2fef2df3cf7b259d73d'
 });
+// I2 is a new, closed epoch. I1 content pins and its normalized self-hash above stay immutable.
+export const I2_BASE = 'b3df5def93688d9d68fad39a9a61e96b5c4ba437';
+export const I2_ADDED = Object.freeze([
+  'prototype/mcp-local/i2/identity-worker.ts',
+  'prototype/mcp-local/i2/identity-config.ts',
+  'prototype/mcp-local/scripts/build-i2-identity.mjs',
+  'prototype/mcp-local/scripts/i2-identity-harness.mjs',
+  'prototype/mcp-local/lab/tests/i2-identity.node.mjs',
+  'prototype/mcp-local/docs/i2-identity.md'
+]);
+export const I2_MODIFIED = Object.freeze([
+  'prototype/mcp-local/scripts/homologation-harness.mjs',
+  'prototype/mcp-local/tests/homologation.test.mjs',
+  'scripts/verify-b4-preservation.mjs',
+  'tests/b4/m21-preservation.node.mjs'
+]);
+const I2_VERIFIER_HASH = 'ab7209fc26bfdf1a118b912ee450f4cb1ae3f61b4f48efd216c71e167f7f8b55';
+const I2_CONTENT = Object.freeze({
+  'prototype/mcp-local/i2/identity-worker.ts': 'ee78ad92c1cc7fe7da40f08aea50350400b446990a9140e2b3b1ed7f83a5c8d8',
+  'prototype/mcp-local/i2/identity-config.ts': '52b16732e1d7f1f83a09512cd88e4312b3e6bccfed27516fc91caf75376089c2',
+  'prototype/mcp-local/scripts/build-i2-identity.mjs': '670f53ebf90add286f175579832626e11f1a3e3e193c062b128c0c85d83efa04',
+  'prototype/mcp-local/scripts/i2-identity-harness.mjs': 'a09ca1c11bc2651b2d71608eb1625db6ea89b6bed3e2f6ac301c7a95dc55da6a',
+  'prototype/mcp-local/lab/tests/i2-identity.node.mjs': 'cf86aca09dd74baec8c9f710aa69a00706c641955cc5e3512ecc4a29ba32be53',
+  'prototype/mcp-local/docs/i2-identity.md': '5b4dcd9457fe24a7c62fa2a90e3193fad6b5a41a1c9afac2f052423e4496a126',
+  'prototype/mcp-local/scripts/homologation-harness.mjs': '4bc4b1574c713643e35cbaab74ac525de540fa086e425c231f54876d72a5a708',
+  'prototype/mcp-local/tests/homologation.test.mjs': 'f7c79ca493c93c246d1762110565e7308af677be81ccbed03be07ae01d2e5ac6',
+  'tests/b4/m21-preservation.node.mjs': 'b6cb5883f23373723c496a2edb7320cf9ab894683e8470582dde379934121d9d',
+});
 export const M20_MODIFIED = Object.freeze(['.github/workflows/b3-sqlite.yml',
   'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
 export const M1_ADDED = Object.freeze([
@@ -186,8 +214,8 @@ const canonical = v => Array.isArray(v) ? '['+v.map(canonical).join(',')+']' : v
 const must = (v, code) => { if (!v) throw new PreservationFailure(code); };
 // Fresh, per-collection reads of the five fixed Git trees. Only immutable blob
 // OIDs are deduplicated inside this call; no state or decision is cached.
-export function readGitSnapshots(runGit) {
-  const refs = [B31, B4, M1_BASE, M20_BASE, I1_BASE], trees = new Map(), oids = new Set();
+export function readGitSnapshots(runGit, refs = [B31, B4, M1_BASE, M20_BASE, I1_BASE]) {
+  const trees = new Map(), oids = new Set();
   const read = (args, input) => {
     let value;
     try { value = runGit(args, input); } catch { throw new PreservationFailure('GIT_READ_FAILED'); }
@@ -260,9 +288,12 @@ export function collectSnapshot(root = process.cwd()) {
     must(lstatSync(resolve(root,n)).isFile(),'CANDIDATE_FILE');
     return [n,readFileSync(resolve(root,n))];
   }));
-  return { ancestor, historical, base, current, m1Ancestor, m1Base, m20Ancestor, m20Base, i1Ancestor, i1Base };
+  let i2Ancestor = false;
+  try { git(['merge-base','--is-ancestor',I2_BASE,'HEAD']); i2Ancestor = true; } catch { /* No historical downgrade. */ }
+  const i2Base = readGitSnapshots(git, [I2_BASE]).get(I2_BASE);
+  return { ancestor, historical, base, current, m1Ancestor, m1Base, m20Ancestor, m20Base, i1Ancestor, i1Base, i2Ancestor, i2Base };
 }
-export function validateSnapshot(s) {
+function validateI1Snapshot(s) {
   must(s.ancestor,'BASE_DIVERGED'); must(s.historical.size === 97 && s.base.size === 144,'HISTORICAL_INVENTORY');
   const allowed = new Set([...s.base.keys(), ...ADDED, ...M1_ADDED, ...I1_ADDED]);
   must(s.current.size === allowed.size && [...allowed].every(n=>s.current.has(n)) && [...s.current.keys()].every(n=>allowed.has(n)),'CANDIDATE_INVENTORY');
@@ -334,6 +365,34 @@ export function validateSnapshot(s) {
     authorizedPublishedModifications:M1_MODIFIED,m1Added:M1_ADDED.length,
     m20Base:M20_BASE,m20PublishedFiles:172,m20ProtectedFiles:m20Identical,m20AuthorizedModifications:M20_MODIFIED,
     i1Base:I1_BASE,i1PublishedFiles:172,i1ProtectedFiles:i1Identical,i1Added:I1_ADDED.length,i1AuthorizedModifications:I1_MODIFIED,i1qAuthorizedPaths:I1Q_PATHS,i1ciAuthorizedPaths:I1_CI_PATHS };
+}
+export function validateSnapshot(s) {
+  must(s.i2Base instanceof Map && s.i2Base.size === 178, 'I2_BASE_INVENTORY');
+  const expected = new Set([...s.i2Base.keys(), ...I2_ADDED]);
+  must(s.current.size === 184 && expected.size === 184 && [...expected].every(p => s.current.has(p))
+    && [...s.current.keys()].every(p => expected.has(p)), 'CANDIDATE_INVENTORY');
+  // Prove the published I1 checkpoint under its unchanged historical rules.
+  const checkpoint = validateI1Snapshot({ ...s, current: s.i2Base });
+  const projected = new Map(s.current);
+  for (const p of I2_ADDED) projected.delete(p);
+  for (const p of I2_MODIFIED) projected.set(p, s.i2Base.get(p));
+  // Non-authorized old bytes still face every historical negative check.
+  validateI1Snapshot({ ...s, current: projected });
+  must(s.i2Ancestor, 'I2_BASE_DIVERGED');
+  const refusedContent = p => p === 'prototype/mcp-local/scripts/homologation-harness.mjs'
+    ? 'M1_PUBLISHED_CHANGED:' + p : (I2_MODIFIED.includes(p) ? 'I1_CONTENT_CHANGED:' : 'I2_CONTENT_CHANGED:') + p;
+  must(Object.keys(I2_CONTENT).length === 9 && [...I2_ADDED, ...I2_MODIFIED]
+    .filter(p => p !== 'scripts/verify-b4-preservation.mjs').every(p => Object.hasOwn(I2_CONTENT,p)), 'I2_CONTENT_INVENTORY');
+  for (const [p,h] of Object.entries(I2_CONTENT)) must(hash(s.current.get(p)) === h, refusedContent(p));
+  const bytes = s.current.get('scripts/verify-b4-preservation.mjs'), text = Buffer.from(bytes).toString('utf8');
+  const marker = /^const I2_VERIFIER_HASH = '[a-f0-9]{64}';$/m;
+  const normalized = text.replace(marker, "const I2_VERIFIER_HASH = '"+'0'.repeat(64)+"';");
+  must(sameBytes(Buffer.from(text),bytes) && marker.exec(text)?.[0] === "const I2_VERIFIER_HASH = '"+I2_VERIFIER_HASH+"';"
+    && hash(normalized) === I2_VERIFIER_HASH, 'I1_CONTENT_CHANGED:scripts/verify-b4-preservation.mjs');
+  return { ...checkpoint, candidateFiles: s.current.size,
+    historicalCountersDescribe: 'validated I1 checkpoint and I2 projection; actual unchanged I2 files counted separately',
+    i2Base: I2_BASE, i2PublishedFiles: 178, i2ProtectedFiles: 174, i2Added: I2_ADDED.length,
+    i2AuthorizedModifications: I2_MODIFIED };
 }
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   try { if(process.argv.length!==2)throw new Error('UNSUPPORTED_ARGUMENTS'); console.log(JSON.stringify(validateSnapshot(collectSnapshot()),null,2)); }
