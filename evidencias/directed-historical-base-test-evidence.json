@@ -1,0 +1,54 @@
+{
+  "syntheticOnly": true,
+  "productionReady": false,
+  "administrativeMfaProven": false,
+  "realQuorumProven": false,
+  "independentReferenceProven": false,
+  "completedScenarios": [],
+  "portEvidence": [],
+  "ciContexts": [],
+  "cancellationEvidence": [],
+  "preservationRouting": [
+    {
+      "name": "full published I1 descendant",
+      "expected": "B4-I1",
+      "exit": 0,
+      "signal": null,
+      "syntheticGitFixture": true
+    },
+    {
+      "name": "I1 working candidate snapshot",
+      "expected": "B4-I1-CI",
+      "exit": 0,
+      "signal": null,
+      "syntheticGitFixture": true,
+      "candidateSnapshot": {
+        "parent": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+        "commit": "32a89756dadae6be937cff89d889cf5eb724bdb4",
+        "tree": "3e0c3680321dd04282ff7d85ac78ddce75cf64c7",
+        "copiedPaths": [
+          ".github/workflows/b4-mcp-local.yml",
+          "prototype/mcp-local/scripts/ci.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "tests/b4/m21-preservation.node.mjs",
+          "prototype/mcp-local/homologation/service-client.ts",
+          "prototype/mcp-local/integration/identity-core.ts",
+          "prototype/mcp-local/lab/tests/boundaries.node.mjs"
+        ],
+        "changedPaths": [],
+        "temporaryRepositoryOnly": true
+      }
+    },
+    {
+      "name": "mixed I1 tree and historical verifier",
+      "expected": "CANDIDATE_INVENTORY",
+      "exit": 1,
+      "signal": null,
+      "noFallback": true,
+      "syntheticGitFixture": true
+    }
+  ],
+  "i1qCIEvidence": [],
+  "gitBatchEvidence": []
+}

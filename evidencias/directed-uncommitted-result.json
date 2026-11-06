@@ -1,0 +1,92 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=^(?:M2.0-FIX: full published descendant retains the checkpoint and selects B4|I[12] fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant|I1 fixture: 178 files mixed with the historical 172-file verifier remain refused|I2 fixture: committed candidate starts from the immutable base and selects its matching verifier)$",
+    "tests/homologation.test.mjs"
+  ],
+  "cwd": "/tmp/conduz-i2-id-fix/uncommitted/prototype/mcp-local",
+  "attempts": 1,
+  "exit": 0,
+  "timeout": false,
+  "limitSeconds": 300,
+  "seconds": 13.149,
+  "expectedTests": 4,
+  "counts": {
+    "tests": 4,
+    "pass": 4,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "children": [],
+  "newNestedRegression": [
+    {
+      "sourceHead": "910f3e6748bd3c1df07406f54ad630372e648567",
+      "sourceParent": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+      "sourceTree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+      "sourceFiles": 184,
+      "snapshot": {
+        "parent": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+        "commit": "910f3e6748bd3c1df07406f54ad630372e648567",
+        "tree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+        "startingFiles": 178,
+        "copiedPaths": [
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "changedPaths": [
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "stagedPaths": [
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "temporaryRepositoryOnly": true
+      },
+      "tests": 3,
+      "pass": 3,
+      "exit": 0,
+      "milliseconds": 6786,
+      "recursionExcluded": true
+    }
+  ],
+  "monitoredByteIdentical": true,
+  "monitoredSemanticIntegrity": true,
+  "indexVariations": {
+    "/workspace/conduz-i2-identity": {},
+    "/workspace/CONDUZ-COBRE-GPT-Mercado-Livre-API": {},
+    "/workspace/conduz-i1-handle-fix": {}
+  },
+  "sourceByteIdentical": true,
+  "sourceSemanticIntegrity": true,
+  "sourceHEAD": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+  "sourceIndexSHA256": "676ae6c66a504aecc2d63deb868c076cc7447da43d5dd4d4e7e72b6d20a41bb1",
+  "passed": true
+}

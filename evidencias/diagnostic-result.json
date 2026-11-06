@@ -1,0 +1,213 @@
+{
+  "conclusion": "CONFIRMADO",
+  "setup": {
+    "base": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+    "syntheticCommit": "ad0595ec30a54a45013a3c1a2dcf33887966c170",
+    "syntheticTree": "421beba786c1c4449aa82e0edec17da719b838b0",
+    "candidateFiles": 184,
+    "reviewedPatchSHA256": "f4d67645389efed5a9ae600c45211d8219ead706c89e012c978fd89277a54fa0",
+    "candidateHashesMatchDevelopment": true,
+    "candidatePaths": [
+      "prototype/mcp-local/scripts/homologation-harness.mjs",
+      "prototype/mcp-local/tests/homologation.test.mjs",
+      "scripts/verify-b4-preservation.mjs",
+      "tests/b4/m21-preservation.node.mjs",
+      "prototype/mcp-local/i2/identity-worker.ts",
+      "prototype/mcp-local/i2/identity-config.ts",
+      "prototype/mcp-local/scripts/build-i2-identity.mjs",
+      "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+      "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+      "prototype/mcp-local/docs/i2-identity.md"
+    ],
+    "repos": {
+      "historical-base": "/tmp/conduz-i2-committed-diagnosis/historical-base",
+      "uncommitted": "/tmp/conduz-i2-committed-diagnosis/uncommitted",
+      "committed": "/tmp/conduz-i2-committed-diagnosis/committed"
+    }
+  },
+  "tests": [
+    {
+      "scenario": "historical-base",
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=^(?:M2.0-FIX: full published descendant retains the checkpoint and selects B4|I[12] fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant|I1 fixture: 178 files mixed with the historical 172-file verifier remain refused)$",
+        "tests/homologation.test.mjs"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 5.59,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "HEAD": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+      "trackedFiles": 178,
+      "allCurrentFileHashesUnchanged": true
+    },
+    {
+      "scenario": "uncommitted",
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=^(?:M2.0-FIX: full published descendant retains the checkpoint and selects B4|I[12] fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant|I1 fixture: 178 files mixed with the historical 172-file verifier remain refused)$",
+        "tests/homologation.test.mjs"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 4.59,
+      "counts": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "HEAD": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+      "trackedFiles": 178,
+      "allCurrentFileHashesUnchanged": true
+    },
+    {
+      "scenario": "committed",
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=^(?:M2.0-FIX: full published descendant retains the checkpoint and selects B4|I[12] fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant|I1 fixture: 178 files mixed with the historical 172-file verifier remain refused)$",
+        "tests/homologation.test.mjs"
+      ],
+      "exit": 1,
+      "timeout": false,
+      "seconds": 3.332,
+      "counts": {
+        "tests": 3,
+        "pass": 1,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "HEAD": "ad0595ec30a54a45013a3c1a2dcf33887966c170",
+      "trackedFiles": 184,
+      "allCurrentFileHashesUnchanged": true
+    }
+  ],
+  "stagingProbe": [
+    {
+      "sourceSHA256": "edf6948e3f6c3ad7edd4ba9becf956a0f1266d5bbd00a56eaf0c86761db8d5b1",
+      "fragmentSHA256": "94113d1e598b53c4a7cd6a15f83e48c0abe5d5ba3b35d5057f6aa803f9e58fd6",
+      "note": "Separate execution of the exact original staging block; does not bypass or change the inventory assertion in the original tests.",
+      "sourceHEAD": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+      "targetHEAD": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+      "expectedPaths": [
+        "prototype/mcp-local/docs/i2-identity.md",
+        "prototype/mcp-local/i2/identity-config.ts",
+        "prototype/mcp-local/i2/identity-worker.ts",
+        "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+        "prototype/mcp-local/scripts/build-i2-identity.mjs",
+        "prototype/mcp-local/scripts/homologation-harness.mjs",
+        "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+        "prototype/mcp-local/tests/homologation.test.mjs",
+        "scripts/verify-b4-preservation.mjs",
+        "tests/b4/m21-preservation.node.mjs"
+      ],
+      "assertion": "PASS",
+      "changedPaths": [
+        "prototype/mcp-local/docs/i2-identity.md",
+        "prototype/mcp-local/i2/identity-config.ts",
+        "prototype/mcp-local/i2/identity-worker.ts",
+        "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+        "prototype/mcp-local/scripts/build-i2-identity.mjs",
+        "prototype/mcp-local/scripts/homologation-harness.mjs",
+        "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+        "prototype/mcp-local/tests/homologation.test.mjs",
+        "scripts/verify-b4-preservation.mjs",
+        "tests/b4/m21-preservation.node.mjs"
+      ],
+      "stagedPaths": [
+        "prototype/mcp-local/docs/i2-identity.md",
+        "prototype/mcp-local/i2/identity-config.ts",
+        "prototype/mcp-local/i2/identity-worker.ts",
+        "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+        "prototype/mcp-local/scripts/build-i2-identity.mjs",
+        "prototype/mcp-local/scripts/homologation-harness.mjs",
+        "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+        "prototype/mcp-local/tests/homologation.test.mjs",
+        "scripts/verify-b4-preservation.mjs",
+        "tests/b4/m21-preservation.node.mjs"
+      ],
+      "command": [
+        "node",
+        "/tmp/conduz-i2-staging-probe.mjs",
+        "/tmp/conduz-i2-committed-diagnosis/uncommitted",
+        "/tmp/conduz-i2-committed-diagnosis/staging-uncommitted"
+      ],
+      "exit": 0,
+      "seconds": 0.265
+    },
+    {
+      "sourceSHA256": "edf6948e3f6c3ad7edd4ba9becf956a0f1266d5bbd00a56eaf0c86761db8d5b1",
+      "fragmentSHA256": "94113d1e598b53c4a7cd6a15f83e48c0abe5d5ba3b35d5057f6aa803f9e58fd6",
+      "note": "Separate execution of the exact original staging block; does not bypass or change the inventory assertion in the original tests.",
+      "sourceHEAD": "ad0595ec30a54a45013a3c1a2dcf33887966c170",
+      "targetHEAD": "ad0595ec30a54a45013a3c1a2dcf33887966c170",
+      "expectedPaths": [
+        "prototype/mcp-local/docs/i2-identity.md",
+        "prototype/mcp-local/i2/identity-config.ts",
+        "prototype/mcp-local/i2/identity-worker.ts",
+        "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+        "prototype/mcp-local/scripts/build-i2-identity.mjs",
+        "prototype/mcp-local/scripts/homologation-harness.mjs",
+        "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+        "prototype/mcp-local/tests/homologation.test.mjs",
+        "scripts/verify-b4-preservation.mjs",
+        "tests/b4/m21-preservation.node.mjs"
+      ],
+      "assertion": "FAIL",
+      "code": "ERR_ASSERTION",
+      "stagedPaths": [],
+      "changedPaths": [
+        "prototype/mcp-local/docs/i2-identity.md",
+        "prototype/mcp-local/i2/identity-config.ts",
+        "prototype/mcp-local/i2/identity-worker.ts",
+        "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+        "prototype/mcp-local/scripts/build-i2-identity.mjs",
+        "prototype/mcp-local/scripts/homologation-harness.mjs",
+        "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+        "prototype/mcp-local/tests/homologation.test.mjs",
+        "scripts/verify-b4-preservation.mjs",
+        "tests/b4/m21-preservation.node.mjs"
+      ],
+      "command": [
+        "node",
+        "/tmp/conduz-i2-staging-probe.mjs",
+        "/tmp/conduz-i2-committed-diagnosis/committed",
+        "/tmp/conduz-i2-committed-diagnosis/staging-committed"
+      ],
+      "exit": 1,
+      "seconds": 0.176
+    }
+  ],
+  "integrity": {
+    "developmentByteForByteUnchanged": true,
+    "originalCheckoutByteForByteUnchanged": true,
+    "historicalControlEqualsImmutableBase": true,
+    "additionalCheckoutDifferences": {
+      "/workspace/conduz-i2-identity": {},
+      "/workspace/CONDUZ-COBRE-GPT-Mercado-Livre-API": {},
+      "/workspace/conduz-i1-handle-fix": {
+        "indexSHA256": {
+          "before": "2e725d09c3bc3fdb371b7693508f4efcbe4f396cdf9767a57ea32cead66ed804",
+          "after": "4f92618d7cd6587724b3178aa4c46764b7b0aa09cc8f32f47f1be29dde7a5e8f"
+        }
+      }
+    }
+  },
+  "collectorNote": "Original driver exit 1 was its global integrity assertion: an auxiliary I1 checkout raw index hash differed. Development and original checkout snapshots are identical; all HEADs, refs, staged diffs and file hashes remain equal. No tests were rerun.",
+  "implementationChanged": false,
+  "publication": false
+}

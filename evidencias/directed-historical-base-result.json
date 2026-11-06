@@ -1,0 +1,37 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=^(?:M2.0-FIX: full published descendant retains the checkpoint and selects B4|I[12] fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant|I1 fixture: 178 files mixed with the historical 172-file verifier remain refused|I2 fixture: committed candidate starts from the immutable base and selects its matching verifier)$",
+    "tests/homologation.test.mjs"
+  ],
+  "cwd": "/tmp/conduz-i2-id-fix/historical-base/prototype/mcp-local",
+  "attempts": 1,
+  "exit": 0,
+  "timeout": false,
+  "limitSeconds": 300,
+  "seconds": 6.85,
+  "expectedTests": 3,
+  "counts": {
+    "tests": 3,
+    "pass": 3,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "children": [],
+  "newNestedRegression": [],
+  "monitoredByteIdentical": true,
+  "monitoredSemanticIntegrity": true,
+  "indexVariations": {
+    "/workspace/conduz-i2-identity": {},
+    "/workspace/CONDUZ-COBRE-GPT-Mercado-Livre-API": {},
+    "/workspace/conduz-i1-handle-fix": {}
+  },
+  "sourceByteIdentical": true,
+  "sourceSemanticIntegrity": true,
+  "sourceHEAD": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+  "sourceIndexSHA256": "f12f75abbddc2fa45c85c526a773fa32f9070e0a60509193883b9878f961e6c9",
+  "passed": true
+}

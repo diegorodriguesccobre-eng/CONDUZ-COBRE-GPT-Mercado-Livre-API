@@ -1,0 +1,11 @@
+✔ M2.0-FIX: full published descendant retains the checkpoint and selects B4 (2944.001191ms)
+✔ I1 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant (502.770473ms)
+✔ I1 fixture: 178 files mixed with the historical 172-file verifier remain refused (1977.197333ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6785.124286

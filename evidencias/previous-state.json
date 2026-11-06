@@ -1,0 +1,125 @@
+{
+  "base": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+  "headUnchanged": true,
+  "newFiles": [
+    "prototype/mcp-local/i2/identity-worker.ts",
+    "prototype/mcp-local/i2/identity-config.ts",
+    "prototype/mcp-local/scripts/build-i2-identity.mjs",
+    "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+    "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+    "prototype/mcp-local/docs/i2-identity.md"
+  ],
+  "modifiedFiles": [
+    "prototype/mcp-local/scripts/homologation-harness.mjs",
+    "prototype/mcp-local/tests/homologation.test.mjs",
+    "scripts/verify-b4-preservation.mjs",
+    "tests/b4/m21-preservation.node.mjs"
+  ],
+  "scopePaths": 10,
+  "candidateFiles": 184,
+  "unchangedI1Files": 174,
+  "historicalByteIdentical": 94,
+  "historicalI1PinsAndSelfHashUnchanged": true,
+  "SHA256": {
+    "prototype/mcp-local/scripts/homologation-harness.mjs": "4bc4b1574c713643e35cbaab74ac525de540fa086e425c231f54876d72a5a708",
+    "prototype/mcp-local/tests/homologation.test.mjs": "edf6948e3f6c3ad7edd4ba9becf956a0f1266d5bbd00a56eaf0c86761db8d5b1",
+    "scripts/verify-b4-preservation.mjs": "8b7efe208e32bb2a38ca73d37d01bb441ed87dd610c62b269153d44daf5db2ed",
+    "tests/b4/m21-preservation.node.mjs": "b6cb5883f23373723c496a2edb7320cf9ab894683e8470582dde379934121d9d",
+    "prototype/mcp-local/i2/identity-worker.ts": "ee78ad92c1cc7fe7da40f08aea50350400b446990a9140e2b3b1ed7f83a5c8d8",
+    "prototype/mcp-local/i2/identity-config.ts": "52b16732e1d7f1f83a09512cd88e4312b3e6bccfed27516fc91caf75376089c2",
+    "prototype/mcp-local/scripts/build-i2-identity.mjs": "670f53ebf90add286f175579832626e11f1a3e3e193c062b128c0c85d83efa04",
+    "prototype/mcp-local/scripts/i2-identity-harness.mjs": "a09ca1c11bc2651b2d71608eb1625db6ea89b6bed3e2f6ac301c7a95dc55da6a",
+    "prototype/mcp-local/lab/tests/i2-identity.node.mjs": "cf86aca09dd74baec8c9f710aa69a00706c641955cc5e3512ecc4a29ba32be53",
+    "prototype/mcp-local/docs/i2-identity.md": "5b4dcd9457fe24a7c62fa2a90e3193fad6b5a41a1c9afac2f052423e4496a126"
+  },
+  "patchSHA256": "f4d67645389efed5a9ae600c45211d8219ead706c89e012c978fd89277a54fa0",
+  "I2SelfHash": "e7f89f6f91a14bdf205d681ef1a638effcf29cc95eb5489730ed5f8b11a830f0",
+  "correctionPaths": [
+    "prototype/mcp-local/tests/homologation.test.mjs",
+    "scripts/verify-b4-preservation.mjs"
+  ],
+  "previousFullHomologation": {
+    "tests": 244,
+    "pass": 243,
+    "fail": 1,
+    "log": "previous-full-homologation.log"
+  },
+  "validation": {
+    "directed": {
+      "command": [
+        "node",
+        "--test",
+        "--test-name-pattern=^I2 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant$",
+        "tests/homologation.test.mjs"
+      ],
+      "attempts": 1,
+      "exit": 0,
+      "seconds": 1.118,
+      "timeout": false,
+      "limitSeconds": 300,
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "children": [],
+      "unchanged": true,
+      "patchUnchanged": true,
+      "patchSHA256": "f4d67645389efed5a9ae600c45211d8219ead706c89e012c978fd89277a54fa0"
+    },
+    "homologation": {
+      "command": [
+        "node",
+        "scripts/ci.mjs",
+        "run",
+        "homologation"
+      ],
+      "attempts": 1,
+      "exit": 0,
+      "seconds": 102.279,
+      "timeout": false,
+      "limitSeconds": 300,
+      "counts": {
+        "tests": 244,
+        "pass": 244,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "children": [
+        {
+          "file": "lab/tests/boundaries.node.mjs",
+          "tests": 62,
+          "pass": 62,
+          "exit": 0,
+          "milliseconds": 1931
+        },
+        {
+          "file": "../../tests/b4/m21-preservation.node.mjs",
+          "tests": 54,
+          "pass": 54,
+          "exit": 0,
+          "milliseconds": 1425
+        },
+        {
+          "file": "lab/tests/i2-identity.node.mjs",
+          "tests": 11,
+          "pass": 11,
+          "exit": 0,
+          "milliseconds": 13393
+        }
+      ],
+      "unchanged": true,
+      "patchUnchanged": true,
+      "patchSHA256": "f4d67645389efed5a9ae600c45211d8219ead706c89e012c978fd89277a54fa0"
+    }
+  },
+  "historicalValidation": "Historical immutable fixture reads and I1 validator/pins unchanged by fixture correction; full homologation and preservation child pass.",
+  "checkoutsAndRefsUnchangedDuringValidation": true,
+  "normalizedSelfHashVerified": true,
+  "conclusion": "PASSA_LOCAL_SYNTHETIC"
+}

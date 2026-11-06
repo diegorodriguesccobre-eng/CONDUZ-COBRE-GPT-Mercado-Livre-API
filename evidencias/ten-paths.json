@@ -1,0 +1,12 @@
+{
+  "prototype/mcp-local/scripts/homologation-harness.mjs": "4bc4b1574c713643e35cbaab74ac525de540fa086e425c231f54876d72a5a708",
+  "prototype/mcp-local/tests/homologation.test.mjs": "f7c79ca493c93c246d1762110565e7308af677be81ccbed03be07ae01d2e5ac6",
+  "scripts/verify-b4-preservation.mjs": "6835430fb417372edb35ddcbbae02b4d7820fb8875a0a4ea27a395135915acfc",
+  "tests/b4/m21-preservation.node.mjs": "b6cb5883f23373723c496a2edb7320cf9ab894683e8470582dde379934121d9d",
+  "prototype/mcp-local/i2/identity-worker.ts": "ee78ad92c1cc7fe7da40f08aea50350400b446990a9140e2b3b1ed7f83a5c8d8",
+  "prototype/mcp-local/i2/identity-config.ts": "52b16732e1d7f1f83a09512cd88e4312b3e6bccfed27516fc91caf75376089c2",
+  "prototype/mcp-local/scripts/build-i2-identity.mjs": "670f53ebf90add286f175579832626e11f1a3e3e193c062b128c0c85d83efa04",
+  "prototype/mcp-local/scripts/i2-identity-harness.mjs": "a09ca1c11bc2651b2d71608eb1625db6ea89b6bed3e2f6ac301c7a95dc55da6a",
+  "prototype/mcp-local/lab/tests/i2-identity.node.mjs": "cf86aca09dd74baec8c9f710aa69a00706c641955cc5e3512ecc4a29ba32be53",
+  "prototype/mcp-local/docs/i2-identity.md": "5b4dcd9457fe24a7c62fa2a90e3193fad6b5a41a1c9afac2f052423e4496a126"
+}

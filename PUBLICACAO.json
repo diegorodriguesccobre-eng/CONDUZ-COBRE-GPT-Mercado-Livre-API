@@ -1,0 +1,14 @@
+{
+  "purpose": "Evidence-only publication for supervision",
+  "branch": "evidencias/i2-id-fix-2026-11-06-ade5002b",
+  "implementationBase": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+  "candidateTree": "f5d1dc12a8c87876b2a832d702f01350dcb98302",
+  "previousEvidenceCommit": "69cc29c3cecbd9d6cfd6409c2b36c270275740d1",
+  "patchSHA256": "ade5002bf130cb625f7146605e90efcc321377af57085647db4d24aacb41ff98",
+  "normalizedI2SelfHash": "ab7209fc26bfdf1a118b912ee450f4cb1ae3f61b4f48efd216c71e167f7f8b55",
+  "ZIP_SHA256": "5c4a67cab3869eb5ab05f3424ac762eaa124664dc5371b6e5a70482ad2d76bee",
+  "sanitizations": [],
+  "result": "PASSA LOCAL SYNTHETIC",
+  "remoteImplementationValidation": "PENDING",
+  "implementationApplied": false
+}
