@@ -1,0 +1,52 @@
+{
+  "syntheticOnly": true,
+  "productionReady": false,
+  "administrativeMfaProven": false,
+  "realQuorumProven": false,
+  "independentReferenceProven": false,
+  "completedScenarios": [],
+  "portEvidence": [],
+  "ciContexts": [],
+  "cancellationEvidence": [],
+  "preservationRouting": [
+    {
+      "name": "I2 working candidate snapshot",
+      "expected": "B4-I2",
+      "exit": 0,
+      "signal": null,
+      "syntheticGitFixture": true,
+      "candidateSnapshot": {
+        "parent": "b3df5def93688d9d68fad39a9a61e96b5c4ba437",
+        "commit": "b01de547ba17cec7fe91c4a83cda10c2ada0dbcf",
+        "tree": "421beba786c1c4449aa82e0edec17da719b838b0",
+        "copiedPaths": [
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "changedPaths": [
+          "prototype/mcp-local/docs/i2-identity.md",
+          "prototype/mcp-local/i2/identity-config.ts",
+          "prototype/mcp-local/i2/identity-worker.ts",
+          "prototype/mcp-local/lab/tests/i2-identity.node.mjs",
+          "prototype/mcp-local/scripts/build-i2-identity.mjs",
+          "prototype/mcp-local/scripts/homologation-harness.mjs",
+          "prototype/mcp-local/scripts/i2-identity-harness.mjs",
+          "prototype/mcp-local/tests/homologation.test.mjs",
+          "scripts/verify-b4-preservation.mjs",
+          "tests/b4/m21-preservation.node.mjs"
+        ],
+        "temporaryRepositoryOnly": true
+      }
+    }
+  ],
+  "i1qCIEvidence": [],
+  "gitBatchEvidence": []
+}

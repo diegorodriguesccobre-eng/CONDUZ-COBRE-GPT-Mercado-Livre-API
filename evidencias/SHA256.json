@@ -1,0 +1,20 @@
+{
+  "README.txt": "65200c750f712a599b1b82238e553cd89f3d05abebbe10528bab01688278f63e",
+  "fixture-fix.patch": "236fcfff221cb3feddf02b86073024b6935292b81ad09f14a71c9a10cfaaebc4",
+  "complete.patch": "f4d67645389efed5a9ae600c45211d8219ead706c89e012c978fd89277a54fa0",
+  "reviewed-state.json": "7749f76f55c449a768d12288131de0ae86905413a1d5425359a811efd885c1df",
+  "final-state.json": "8000f0d062d61b369eb8c45fea1bb37622fb536c97b286c2e76f76762c18f1ff",
+  "before-correction.json": "0c91afd6c98acb500da5c983f5f3c4cc8f4e6551495e90af2381f16f93b5de01",
+  "directed-before.json": "f083b6f19b1fac8c124baf44c2fb07c9c2075cc23c1143a6e52fe3c2974b1343",
+  "directed-after.json": "f083b6f19b1fac8c124baf44c2fb07c9c2075cc23c1143a6e52fe3c2974b1343",
+  "directed-result.json": "aab54fa0ca051a26622dd1e52a8c11e03e223ba89e77108b4033779db81c0eec",
+  "directed.log": "d88d442fb995621e101512ccc6c61724487bcae4811a360732b935fa8223acdb",
+  "directed-test-evidence.json": "b871c61ce41bd3e0575ae11e4c3265aa3ab8d3c1e5c5b8004cc4c4f3488f5134",
+  "homologation-before.json": "f083b6f19b1fac8c124baf44c2fb07c9c2075cc23c1143a6e52fe3c2974b1343",
+  "homologation-after.json": "f083b6f19b1fac8c124baf44c2fb07c9c2075cc23c1143a6e52fe3c2974b1343",
+  "homologation-result.json": "4b7da681c69619505559d1fcd5386adffe33706aef7748bdc2b73bd1e1ceb3a1",
+  "homologation.log": "2d00d951c5a266f8af2303c69628bccc352610b72bf0f978cc63e8bcf3dd9efc",
+  "homologation-test-evidence.json": "feaa617ad2f66fa976fedc21d6142eae773839591d71354798b73c3db4b52d99",
+  "previous-full-homologation.log": "be1028f98a3caae1d063992744364fc6ee37ed4e88c9e2a66a4d32a320538059",
+  "run-validation.py": "6843c0f05854c84291cc969eef84503f2fc81ad5002b572a305c39ce82a33a27"
+}

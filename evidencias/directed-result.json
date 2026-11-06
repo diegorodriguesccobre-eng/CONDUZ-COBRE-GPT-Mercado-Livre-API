@@ -1,0 +1,25 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=^I2 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant$",
+    "tests/homologation.test.mjs"
+  ],
+  "attempts": 1,
+  "exit": 0,
+  "seconds": 1.118,
+  "timeout": false,
+  "limitSeconds": 300,
+  "counts": {
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "children": [],
+  "unchanged": true,
+  "patchUnchanged": true,
+  "patchSHA256": "f4d67645389efed5a9ae600c45211d8219ead706c89e012c978fd89277a54fa0"
+}

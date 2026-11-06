@@ -1,0 +1,32 @@
+--- a/prototype/mcp-local/tests/homologation.test.mjs
++++ b/prototype/mcp-local/tests/homologation.test.mjs
+@@ -448,7 +448,8 @@
+       const parent = git('rev-parse', 'HEAD'), changedPaths = [];
+       for (const path of candidatePaths) {
+         const bytes = readFileSync(resolve(root, path));
+-        if (!bytes.equals(execFileSync('git', ['--no-replace-objects', 'show', 'HEAD:' + path], { cwd: root, stdio: 'pipe' }))) changedPaths.push(path);
++        const previous = collected.i2Base.get(path);
++        if (previous === undefined || !bytes.equals(previous)) changedPaths.push(path);
+         fixtureWrite(repo, path, bytes);
+       }
+       git('add', '--', ...candidatePaths);
+--- a/scripts/verify-b4-preservation.mjs
++++ b/scripts/verify-b4-preservation.mjs
+@@ -82,7 +82,7 @@
+   'scripts/verify-b4-preservation.mjs',
+   'tests/b4/m21-preservation.node.mjs'
+ ]);
+-const I2_VERIFIER_HASH = '76faa921e2a59e786e475aba1476a2f12c47d0ac431c9c4d53f23b3e61b615c8';
++const I2_VERIFIER_HASH = 'e7f89f6f91a14bdf205d681ef1a638effcf29cc95eb5489730ed5f8b11a830f0';
+ const I2_CONTENT = Object.freeze({
+   'prototype/mcp-local/i2/identity-worker.ts': 'ee78ad92c1cc7fe7da40f08aea50350400b446990a9140e2b3b1ed7f83a5c8d8',
+   'prototype/mcp-local/i2/identity-config.ts': '52b16732e1d7f1f83a09512cd88e4312b3e6bccfed27516fc91caf75376089c2',
+@@ -91,7 +91,7 @@
+   'prototype/mcp-local/lab/tests/i2-identity.node.mjs': 'cf86aca09dd74baec8c9f710aa69a00706c641955cc5e3512ecc4a29ba32be53',
+   'prototype/mcp-local/docs/i2-identity.md': '5b4dcd9457fe24a7c62fa2a90e3193fad6b5a41a1c9afac2f052423e4496a126',
+   'prototype/mcp-local/scripts/homologation-harness.mjs': '4bc4b1574c713643e35cbaab74ac525de540fa086e425c231f54876d72a5a708',
+-  'prototype/mcp-local/tests/homologation.test.mjs': 'fb9d5e999efee1cf26df59580d2752e9c663fd7f40f710976f87b696e50171d6',
++  'prototype/mcp-local/tests/homologation.test.mjs': 'edf6948e3f6c3ad7edd4ba9becf956a0f1266d5bbd00a56eaf0c86761db8d5b1',
+   'tests/b4/m21-preservation.node.mjs': 'b6cb5883f23373723c496a2edb7320cf9ab894683e8470582dde379934121d9d',
+ });
+ export const M20_MODIFIED = Object.freeze(['.github/workflows/b3-sqlite.yml',

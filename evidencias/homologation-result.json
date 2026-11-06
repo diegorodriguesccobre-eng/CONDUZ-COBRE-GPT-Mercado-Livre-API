@@ -1,0 +1,47 @@
+{
+  "command": [
+    "node",
+    "scripts/ci.mjs",
+    "run",
+    "homologation"
+  ],
+  "attempts": 1,
+  "exit": 0,
+  "seconds": 102.279,
+  "timeout": false,
+  "limitSeconds": 300,
+  "counts": {
+    "tests": 244,
+    "pass": 244,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "children": [
+    {
+      "file": "lab/tests/boundaries.node.mjs",
+      "tests": 62,
+      "pass": 62,
+      "exit": 0,
+      "milliseconds": 1931
+    },
+    {
+      "file": "../../tests/b4/m21-preservation.node.mjs",
+      "tests": 54,
+      "pass": 54,
+      "exit": 0,
+      "milliseconds": 1425
+    },
+    {
+      "file": "lab/tests/i2-identity.node.mjs",
+      "tests": 11,
+      "pass": 11,
+      "exit": 0,
+      "milliseconds": 13393
+    }
+  ],
+  "unchanged": true,
+  "patchUnchanged": true,
+  "patchSHA256": "f4d67645389efed5a9ae600c45211d8219ead706c89e012c978fd89277a54fa0"
+}

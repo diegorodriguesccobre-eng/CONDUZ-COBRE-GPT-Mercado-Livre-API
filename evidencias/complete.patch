@@ -1,0 +1,806 @@
+diff --git a/prototype/mcp-local/scripts/homologation-harness.mjs b/prototype/mcp-local/scripts/homologation-harness.mjs
+index 17b3d32bbb3e1a8c4c8f79a1571c14f2175e7f34..7011f164c4f54aa7fd107ea5d915f564bc13f770 100644
+--- a/prototype/mcp-local/scripts/homologation-harness.mjs
++++ b/prototype/mcp-local/scripts/homologation-harness.mjs
+@@ -21,7 +21,7 @@ const backendObjects = {
+ };
+ // Node-only privileged test driver. Never imported by the public Worker build.
+ // The existing simulated approvals are laboratory inputs, not evidence of MFA or real quorum.
+-export async function createHomologationFixture() {
++export async function createHomologationFixture({ identityRuntime } = {}) {
+   const keyPair = await generateKeyPair('RS256');
+   const materials = Object.fromEntries(['a','b'].map(s => ['account-' + s, {
+     key: randomBytes(32).toString('base64url'),
+@@ -38,10 +38,15 @@ export async function createHomologationFixture() {
+     let runtime; let front; let frontRuntime;
+     const backend = await startLocal({}, {
+       createKeyPair: async () => keyPair,
+-      configureRuntime: options => ({ ...options, scriptPath: resolve(project, 'work/homologation/backend.mjs'),
++      configureRuntime: options => {
++        const backendOptions = { ...options, scriptPath: resolve(project, 'work/homologation/backend.mjs'),
+         resourcePersistencePath: path, durableObjects: backendObjects,
+-        bindings: { ...options.bindings, SYNTHETIC_POLICY: 'persistent', SYNTHETIC_VAULT_MATERIAL: materials } }),
+-      createRuntime: options => { runtime = new Miniflare(options); return runtime; }
++        bindings: { ...options.bindings, SYNTHETIC_POLICY: 'persistent', SYNTHETIC_VAULT_MATERIAL: materials } };
++        return identityRuntime ? identityRuntime.configureBackend(backendOptions) : backendOptions;
++      },
++      createRuntime: options => {
++        runtime = new Miniflare(options); identityRuntime?.onRuntime(runtime); return runtime;
++      }
+     });
+     try {
+       const stub = async (binding, name) => {
+@@ -99,7 +104,10 @@ export async function createHomologationFixture() {
+               timer = setTimeout(done, 2000); shutdown.signal.addEventListener('abort', done, { once: true });
+             });
+             if (fault) throw new Error('PRIVATE_INJECTED_' + fault);
+-            const response = Response.json({ ok: true, value: plain(await methods[port][parts[2]](body.args)) });
++            const response = port === 'identity' && identityRuntime
++              ? await identityRuntime.fetch(new Request(request.url, { method: 'POST', headers: request.headers,
++                body: JSON.stringify(body), signal: request.signal }), runtime)
++              : Response.json({ ok: true, value: plain(await methods[port][parts[2]](body.args)) });
+             record.result = 'completed'; return response;
+           } catch { if (record) record.result = 'unavailable'; return Response.json({ ok: false }, { status: 503 }); }
+           finally { if (record) record.durationMs = Date.now() - record.started; }
+diff --git a/prototype/mcp-local/tests/homologation.test.mjs b/prototype/mcp-local/tests/homologation.test.mjs
+index a7ef9d7628ee6d8838c4d801b742b056d7a86b57..eac25e535a15f541eb0b2be51b8eeb6c6e945d21 100644
+--- a/prototype/mcp-local/tests/homologation.test.mjs
++++ b/prototype/mcp-local/tests/homologation.test.mjs
+@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
+ import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, renameSync, readdirSync } from 'node:fs';
+ import { resolve, dirname } from 'node:path';
+ import { fileURLToPath, pathToFileURL } from 'node:url';
+-import { collectSnapshot, readGitSnapshots, validateSnapshot, expectedSQLiteWorkflow, expectedCIDispatcher, M1_ADDED, M1_MODIFIED, M1_BASE, B31, B4, M20_BASE, M20_MODIFIED, I1_BASE, I1_CI_PATHS } from '../../../scripts/verify-b4-preservation.mjs';
++import { collectSnapshot, readGitSnapshots, validateSnapshot, expectedSQLiteWorkflow, expectedCIDispatcher, M1_ADDED, M1_MODIFIED, M1_BASE, B31, B4, M20_BASE, M20_MODIFIED, I1_BASE, I1_CI_PATHS, I2_BASE, I2_ADDED, I2_MODIFIED } from '../../../scripts/verify-b4-preservation.mjs';
+ import { verifyInventory, suites } from '../scripts/ci.mjs';
+ 
+ const project = fileURLToPath(new URL('..', import.meta.url));
+@@ -155,7 +155,7 @@ test('M1-BATCH: multiple objects retain request order and a missing second respo
+ test('M1-01: exactly the eight previously approved names are accepted', () => {
+   assert.deepEqual(M1_ADDED, paths); assert.equal(Object.isFrozen(M1_ADDED), true);
+   const r = validateSnapshot(complete());
+-  assert.equal(r.candidateFiles, 178); assert.equal(r.m1Added, 8);
++  assert.equal(r.candidateFiles, 184); assert.equal(r.m1Added, 8);
+   assert.equal(r.publishedByteIdentical, 155); assert.equal(r.byteIdentical, 94);
+   assert.deepEqual(M1_MODIFIED, ['scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/scripts/ci.mjs', '.github/workflows/b3-sqlite.yml', '.github/workflows/b4-mcp-local.yml']);
+   assert.equal(Object.isFrozen(M1_MODIFIED), true);
+@@ -371,7 +371,7 @@ for (const context of contexts.slice(0, 2)) test('M1-02: actual SQLite shell inv
+   const result = JSON.parse(execFileSync('bash', ['-eu', '-o', 'pipefail', '-c', shell], {
+     cwd: root, env: { ...process.env, B4_PRESERVATION: String(selected(context)) }, stdio: 'pipe', timeout: 15000
+   }));
+-  assert.equal(result.candidateFiles, 178); assert.equal(result.publishedByteIdentical, 155);
++  assert.equal(result.candidateFiles, 184); assert.equal(result.publishedByteIdentical, 155);
+   assert.equal(result.activationBlocked, true);
+ });
+ test('M1-02: actual SQLite shell preserves B3 selection on the unchanged historical reference', () => {
+@@ -436,18 +436,20 @@ function i1GitFixture(run, { workingTree = false, ref = 'HEAD' } = {}) {
+     const { git, repo } = fixture;
+     assert.equal(git('rev-parse', '--is-shallow-repository'), 'false');
+     assert.equal(git('merge-base', '--is-ancestor', I1_BASE, 'HEAD'), '');
+-    assert.deepEqual(git('ls-files', '-z').split('\0').filter(Boolean).sort(), [...collected.current.keys()].sort());
++    assert.deepEqual(git('ls-files', '-z').split('\0').filter(Boolean).sort(), [...collected.i2Base.keys()].sort());
+     if (workingTree) {
+-      const candidatePaths = Object.freeze([...I1_CI_PATHS, 'prototype/mcp-local/homologation/service-client.ts',
+-        'prototype/mcp-local/integration/identity-core.ts', 'prototype/mcp-local/lab/tests/boundaries.node.mjs']);
+-      assert.deepEqual([...candidatePaths].sort(), ['.github/workflows/b4-mcp-local.yml', 'prototype/mcp-local/scripts/ci.mjs',
+-        'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs',
+-        'tests/b4/m21-preservation.node.mjs', 'prototype/mcp-local/homologation/service-client.ts',
+-        'prototype/mcp-local/integration/identity-core.ts', 'prototype/mcp-local/lab/tests/boundaries.node.mjs'].sort());
++      const candidatePaths = Object.freeze([...I2_ADDED, ...I2_MODIFIED]);
++      assert.deepEqual([...candidatePaths].sort(), [
++        'prototype/mcp-local/i2/identity-worker.ts', 'prototype/mcp-local/i2/identity-config.ts',
++        'prototype/mcp-local/scripts/build-i2-identity.mjs', 'prototype/mcp-local/scripts/i2-identity-harness.mjs',
++        'prototype/mcp-local/lab/tests/i2-identity.node.mjs', 'prototype/mcp-local/docs/i2-identity.md',
++        'prototype/mcp-local/scripts/homologation-harness.mjs', 'prototype/mcp-local/tests/homologation.test.mjs',
++        'scripts/verify-b4-preservation.mjs', 'tests/b4/m21-preservation.node.mjs'].sort());
+       const parent = git('rev-parse', 'HEAD'), changedPaths = [];
+       for (const path of candidatePaths) {
+         const bytes = readFileSync(resolve(root, path));
+-        if (!bytes.equals(execFileSync('git', ['--no-replace-objects', 'show', 'HEAD:' + path], { cwd: root, stdio: 'pipe' }))) changedPaths.push(path);
++        const previous = collected.i2Base.get(path);
++        if (previous === undefined || !bytes.equals(previous)) changedPaths.push(path);
+         fixtureWrite(repo, path, bytes);
+       }
+       git('add', '--', ...candidatePaths);
+@@ -489,16 +491,20 @@ function checkedB4Report(report, epoch) {
+     assert.equal(report.i1ProtectedFiles, epoch === 'i1' ? 164 : 162); assert.equal(report.i1Added, 6);
+     assert.equal(report.originalVerifierPreserved, true);
+     if (epoch === 'i1-ci') assert.deepEqual(report.i1ciAuthorizedPaths, I1_CI_PATHS);
++  } else if (epoch === 'i2') {
++    assert.equal(report.candidateFiles, 184); assert.equal(report.i2Base, I2_BASE);
++    assert.equal(report.i2PublishedFiles, 178); assert.equal(report.i2ProtectedFiles, 174);
++    assert.equal(report.i2Added, 6); assert.equal(report.originalVerifierPreserved, true);
+   } else assert.fail('Unknown preservation epoch');
+ }
+ function checkedSelection(fixture, name, expected, extraEnv) {
+   const r = selection(fixture.repo, extraEnv);
+-  if (expected === 'B4' || expected === 'B4-I1' || expected === 'B4-I1-CI' || expected === 'B3') {
++  if (expected === 'B4' || expected === 'B4-I1' || expected === 'B4-I1-CI' || expected === 'B4-I2' || expected === 'B3') {
+     assert.equal(r.exit, 0, r.stderr); assert.equal(r.signal, null); const report = JSON.parse(r.stdout);
+     if (expected !== 'B3') {
+-      const epoch = expected === 'B4' ? 'historical' : expected === 'B4-I1' ? 'i1' : 'i1-ci';
++      const epoch = expected === 'B4' ? 'historical' : expected === 'B4-I1' ? 'i1' : expected === 'B4-I2' ? 'i2' : 'i1-ci';
+       checkedB4Report(report, epoch);
+-      for (const wrong of ['historical','i1','i1-ci'].filter(other => other !== epoch))
++      for (const wrong of ['historical','i1','i1-ci','i2'].filter(other => other !== epoch))
+         assert.throws(() => checkedB4Report(report, wrong), { code: 'ERR_ASSERTION' });
+     } else {
+       assert.equal(report.base, 'f59081e223006f3eb0739d01073ed2eba824687e');
+@@ -568,8 +574,8 @@ test('M2.0-FIX: full published descendant retains the checkpoint and selects B4'
+   assert.equal(f.git('cat-file', '-t', M20_BASE), 'commit');
+   checkedSelection(f, 'full published I1 descendant', 'B4-I1');
+ }, { ref: 'dccd2dd7dab1d0e99ae5f303099b6e6252cd43c7' }));
+-test('I1 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant', () => i1GitFixture(f => {
+-  checkedSelection(f, 'I1 working candidate snapshot', 'B4-I1-CI');
++test('I2 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant', () => i1GitFixture(f => {
++  checkedSelection(f, 'I2 working candidate snapshot', 'B4-I2');
+   Object.assign(m20RoutingEvidence.at(-1), { candidateSnapshot: f.candidateSnapshot });
+ }, { workingTree: true }));
+ test('I1 fixture: 178 files mixed with the historical 172-file verifier remain refused', () => i1GitFixture(f => {
+@@ -1453,7 +1459,8 @@ test('M1 public build exports only the handler and excludes private fixtures and
+ const i1qCIEvidence = [];
+ const i1qSuites = Object.freeze([
+   Object.freeze({ file: 'lab/tests/boundaries.node.mjs', expectedTests: 62 }),
+-  Object.freeze({ file: '../../tests/b4/m21-preservation.node.mjs', expectedTests: 51 })
++  Object.freeze({ file: '../../tests/b4/m21-preservation.node.mjs', expectedTests: 54 }),
++  Object.freeze({ file: 'lab/tests/i2-identity.node.mjs', expectedTests: 11 })
+ ]);
+ for (const suite of i1qSuites) test('I1-Q CI runs all tests in ' + suite.file, { timeout: 45000 }, () => {
+   const directory=resolve(project,'work/i1q-ci'); mkdirSync(directory,{recursive:true});
+@@ -1462,7 +1469,7 @@ for (const suite of i1qSuites) test('I1-Q CI runs all tests in ' + suite.file, {
+   const stdout=execFileSync(process.execPath, ['--test', '--test-reporter=tap', suite.file], {
+     cwd:project, env:childEnv, stdio:['ignore','pipe','pipe'], timeout:40000, maxBuffer:16*1024*1024
+   }).toString();
+-  writeFileSync(resolve(directory,suite.file.includes('boundaries')?'boundaries.tap':'preservation.tap'),stdout);
++  writeFileSync(resolve(directory,suite.file.includes('boundaries')?'boundaries.tap':suite.file.includes('i2-identity')?'i2-identity.tap':'preservation.tap'),stdout);
+   const count=name=>{ const matches=[...stdout.matchAll(new RegExp('^# '+name+' (\\d+)$','gm'))];
+     assert.equal(matches.length,1,'Exactly one child summary is required');return Number(matches[0][1]); };
+   assert.equal(count('tests'),suite.expectedTests); assert.equal(count('pass'),suite.expectedTests);
+diff --git a/scripts/verify-b4-preservation.mjs b/scripts/verify-b4-preservation.mjs
+index 6f3fc0ba2dfdd1fe36b8b6030003b43361940cc8..1193bf45e620666599246c7f7192a2b74ccf8adb 100644
+--- a/scripts/verify-b4-preservation.mjs
++++ b/scripts/verify-b4-preservation.mjs
+@@ -66,6 +66,34 @@ const I1_CONTENT = Object.freeze({
+   'prototype/mcp-local/homologation/ports.ts': '491af00348dd0cab9bd45a98b75e8100611c88510c0724494f367dfd4e0c3822',
+   'prototype/mcp-local/tests/homologation.test.mjs': '9cbe38dbddd554f899df0e37efd08585fa6ec077c717b2fef2df3cf7b259d73d'
+ });
++// I2 is a new, closed epoch. I1 content pins and its normalized self-hash above stay immutable.
++export const I2_BASE = 'b3df5def93688d9d68fad39a9a61e96b5c4ba437';
++export const I2_ADDED = Object.freeze([
++  'prototype/mcp-local/i2/identity-worker.ts',
++  'prototype/mcp-local/i2/identity-config.ts',
++  'prototype/mcp-local/scripts/build-i2-identity.mjs',
++  'prototype/mcp-local/scripts/i2-identity-harness.mjs',
++  'prototype/mcp-local/lab/tests/i2-identity.node.mjs',
++  'prototype/mcp-local/docs/i2-identity.md'
++]);
++export const I2_MODIFIED = Object.freeze([
++  'prototype/mcp-local/scripts/homologation-harness.mjs',
++  'prototype/mcp-local/tests/homologation.test.mjs',
++  'scripts/verify-b4-preservation.mjs',
++  'tests/b4/m21-preservation.node.mjs'
++]);
++const I2_VERIFIER_HASH = 'e7f89f6f91a14bdf205d681ef1a638effcf29cc95eb5489730ed5f8b11a830f0';
++const I2_CONTENT = Object.freeze({
++  'prototype/mcp-local/i2/identity-worker.ts': 'ee78ad92c1cc7fe7da40f08aea50350400b446990a9140e2b3b1ed7f83a5c8d8',
++  'prototype/mcp-local/i2/identity-config.ts': '52b16732e1d7f1f83a09512cd88e4312b3e6bccfed27516fc91caf75376089c2',
++  'prototype/mcp-local/scripts/build-i2-identity.mjs': '670f53ebf90add286f175579832626e11f1a3e3e193c062b128c0c85d83efa04',
++  'prototype/mcp-local/scripts/i2-identity-harness.mjs': 'a09ca1c11bc2651b2d71608eb1625db6ea89b6bed3e2f6ac301c7a95dc55da6a',
++  'prototype/mcp-local/lab/tests/i2-identity.node.mjs': 'cf86aca09dd74baec8c9f710aa69a00706c641955cc5e3512ecc4a29ba32be53',
++  'prototype/mcp-local/docs/i2-identity.md': '5b4dcd9457fe24a7c62fa2a90e3193fad6b5a41a1c9afac2f052423e4496a126',
++  'prototype/mcp-local/scripts/homologation-harness.mjs': '4bc4b1574c713643e35cbaab74ac525de540fa086e425c231f54876d72a5a708',
++  'prototype/mcp-local/tests/homologation.test.mjs': 'edf6948e3f6c3ad7edd4ba9becf956a0f1266d5bbd00a56eaf0c86761db8d5b1',
++  'tests/b4/m21-preservation.node.mjs': 'b6cb5883f23373723c496a2edb7320cf9ab894683e8470582dde379934121d9d',
++});
+ export const M20_MODIFIED = Object.freeze(['.github/workflows/b3-sqlite.yml',
+   'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
+ export const M1_ADDED = Object.freeze([
+@@ -186,8 +214,8 @@ const canonical = v => Array.isArray(v) ? '['+v.map(canonical).join(',')+']' : v
+ const must = (v, code) => { if (!v) throw new PreservationFailure(code); };
+ // Fresh, per-collection reads of the five fixed Git trees. Only immutable blob
+ // OIDs are deduplicated inside this call; no state or decision is cached.
+-export function readGitSnapshots(runGit) {
+-  const refs = [B31, B4, M1_BASE, M20_BASE, I1_BASE], trees = new Map(), oids = new Set();
++export function readGitSnapshots(runGit, refs = [B31, B4, M1_BASE, M20_BASE, I1_BASE]) {
++  const trees = new Map(), oids = new Set();
+   const read = (args, input) => {
+     let value;
+     try { value = runGit(args, input); } catch { throw new PreservationFailure('GIT_READ_FAILED'); }
+@@ -260,9 +288,12 @@ export function collectSnapshot(root = process.cwd()) {
+     must(lstatSync(resolve(root,n)).isFile(),'CANDIDATE_FILE');
+     return [n,readFileSync(resolve(root,n))];
+   }));
+-  return { ancestor, historical, base, current, m1Ancestor, m1Base, m20Ancestor, m20Base, i1Ancestor, i1Base };
++  let i2Ancestor = false;
++  try { git(['merge-base','--is-ancestor',I2_BASE,'HEAD']); i2Ancestor = true; } catch { /* No historical downgrade. */ }
++  const i2Base = readGitSnapshots(git, [I2_BASE]).get(I2_BASE);
++  return { ancestor, historical, base, current, m1Ancestor, m1Base, m20Ancestor, m20Base, i1Ancestor, i1Base, i2Ancestor, i2Base };
+ }
+-export function validateSnapshot(s) {
++function validateI1Snapshot(s) {
+   must(s.ancestor,'BASE_DIVERGED'); must(s.historical.size === 97 && s.base.size === 144,'HISTORICAL_INVENTORY');
+   const allowed = new Set([...s.base.keys(), ...ADDED, ...M1_ADDED, ...I1_ADDED]);
+   must(s.current.size === allowed.size && [...allowed].every(n=>s.current.has(n)) && [...s.current.keys()].every(n=>allowed.has(n)),'CANDIDATE_INVENTORY');
+@@ -335,6 +366,34 @@ export function validateSnapshot(s) {
+     m20Base:M20_BASE,m20PublishedFiles:172,m20ProtectedFiles:m20Identical,m20AuthorizedModifications:M20_MODIFIED,
+     i1Base:I1_BASE,i1PublishedFiles:172,i1ProtectedFiles:i1Identical,i1Added:I1_ADDED.length,i1AuthorizedModifications:I1_MODIFIED,i1qAuthorizedPaths:I1Q_PATHS,i1ciAuthorizedPaths:I1_CI_PATHS };
+ }
++export function validateSnapshot(s) {
++  must(s.i2Base instanceof Map && s.i2Base.size === 178, 'I2_BASE_INVENTORY');
++  const expected = new Set([...s.i2Base.keys(), ...I2_ADDED]);
++  must(s.current.size === 184 && expected.size === 184 && [...expected].every(p => s.current.has(p))
++    && [...s.current.keys()].every(p => expected.has(p)), 'CANDIDATE_INVENTORY');
++  // Prove the published I1 checkpoint under its unchanged historical rules.
++  const checkpoint = validateI1Snapshot({ ...s, current: s.i2Base });
++  const projected = new Map(s.current);
++  for (const p of I2_ADDED) projected.delete(p);
++  for (const p of I2_MODIFIED) projected.set(p, s.i2Base.get(p));
++  // Non-authorized old bytes still face every historical negative check.
++  validateI1Snapshot({ ...s, current: projected });
++  must(s.i2Ancestor, 'I2_BASE_DIVERGED');
++  const refusedContent = p => p === 'prototype/mcp-local/scripts/homologation-harness.mjs'
++    ? 'M1_PUBLISHED_CHANGED:' + p : (I2_MODIFIED.includes(p) ? 'I1_CONTENT_CHANGED:' : 'I2_CONTENT_CHANGED:') + p;
++  must(Object.keys(I2_CONTENT).length === 9 && [...I2_ADDED, ...I2_MODIFIED]
++    .filter(p => p !== 'scripts/verify-b4-preservation.mjs').every(p => Object.hasOwn(I2_CONTENT,p)), 'I2_CONTENT_INVENTORY');
++  for (const [p,h] of Object.entries(I2_CONTENT)) must(hash(s.current.get(p)) === h, refusedContent(p));
++  const bytes = s.current.get('scripts/verify-b4-preservation.mjs'), text = Buffer.from(bytes).toString('utf8');
++  const marker = /^const I2_VERIFIER_HASH = '[a-f0-9]{64}';$/m;
++  const normalized = text.replace(marker, "const I2_VERIFIER_HASH = '"+'0'.repeat(64)+"';");
++  must(sameBytes(Buffer.from(text),bytes) && marker.exec(text)?.[0] === "const I2_VERIFIER_HASH = '"+I2_VERIFIER_HASH+"';"
++    && hash(normalized) === I2_VERIFIER_HASH, 'I1_CONTENT_CHANGED:scripts/verify-b4-preservation.mjs');
++  return { ...checkpoint, candidateFiles: s.current.size,
++    historicalCountersDescribe: 'validated I1 checkpoint and I2 projection; actual unchanged I2 files counted separately',
++    i2Base: I2_BASE, i2PublishedFiles: 178, i2ProtectedFiles: 174, i2Added: I2_ADDED.length,
++    i2AuthorizedModifications: I2_MODIFIED };
++}
+ if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
+   try { if(process.argv.length!==2)throw new Error('UNSUPPORTED_ARGUMENTS'); console.log(JSON.stringify(validateSnapshot(collectSnapshot()),null,2)); }
+   catch (e) { console.error(JSON.stringify({preservation:'FAILED',code:e instanceof PreservationFailure?e.message:'PRESERVATION_UNVERIFIED'}));process.exitCode=1; }
+diff --git a/tests/b4/m21-preservation.node.mjs b/tests/b4/m21-preservation.node.mjs
+index 10376fdfeac6a3bc963fc63bc0285587c33309b8..eafbba4fbab8d2b01c5ba2e67e588e7d8153fb34 100644
+--- a/tests/b4/m21-preservation.node.mjs
++++ b/tests/b4/m21-preservation.node.mjs
+@@ -5,7 +5,7 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSyn
+ import { createHash } from 'node:crypto';
+ import { resolve, dirname } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+-import { collectSnapshot, validateSnapshot, I1_BASE, I1_ADDED, I1_MODIFIED, I1Q_PATHS, I1_CI_PATHS } from '../../scripts/verify-b4-preservation.mjs';
++import { collectSnapshot, validateSnapshot, I1_BASE, I1_ADDED, I1_MODIFIED, I1Q_PATHS, I1_CI_PATHS, I2_BASE, I2_ADDED, I2_MODIFIED } from '../../scripts/verify-b4-preservation.mjs';
+ 
+ const root = fileURLToPath(new URL('../..', import.meta.url));
+ const original = collectSnapshot(root), copy = () => ({ ...original, current: new Map(original.current), i1Base: new Map(original.i1Base) });
+@@ -24,7 +24,7 @@ test('I1 preservation accepts only six additions/ten exact transformations at th
+   assert.deepEqual(I1_ADDED, added); assert.deepEqual(I1_MODIFIED, modified);
+   assert.ok(Object.isFrozen(I1_ADDED) && Object.isFrozen(I1_MODIFIED));
+   const r = validateSnapshot(copy());
+-  assert.equal(r.candidateFiles, 178); assert.equal(r.i1ProtectedFiles, 162); assert.equal(r.i1Added, 6);
++  assert.equal(r.candidateFiles, 184); assert.equal(r.i1ProtectedFiles, 162); assert.equal(r.i1Added, 6);
+   assert.equal(r.byteIdentical, 94); assert.equal(r.activationBlocked, true); assert.equal(r.originalVerifierPreserved, true);
+   assert.deepEqual(r.exceptions, ['package.json','package-lock.json','.github/workflows/b3-sqlite.yml']);
+ });
+@@ -37,10 +37,11 @@ for (const path of [...added,...modified]) {
+   });
+   test('I1 required file cannot be missing: ' + path, () => { const s = copy(); s.current.delete(path); refused(s, /^CANDIDATE_INVENTORY$/); });
+ }
+-test('I1 all other 162 main files remain byte-for-byte protected', () => {
++test('I1 all other 162 main files remain protected by bytes or a closed I2 transformation', () => {
+   let count = 0;
+   for (const [path, bytes] of original.i1Base) if (!modified.includes(path)) {
+-    assert.deepEqual(original.current.get(path), bytes);
++    if (I2_MODIFIED.includes(path)) assert.deepEqual(original.i2Base.get(path), bytes);
++    else assert.deepEqual(original.current.get(path), bytes);
+     const s = copy(); s.current.set(path, Buffer.concat([bytes, Buffer.from('\n')]));
+     refused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:|I1_PUBLISHED_CHANGED:)/);
+     count++;
+@@ -71,7 +72,7 @@ test('I1 base matches the original Git tree independently of the verifier counte
+     const current = readFileSync(resolve(root,path));
+     if (!current.equals(expected)) changed.push(path);
+   }
+-  assert.deepEqual(changed.sort(), [...modified].sort());
++  assert.deepEqual(changed.sort(), [...new Set([...modified, ...I2_MODIFIED.filter(p => paths.includes(p))])].sort());
+   assert.equal(sha(readFileSync(resolve(root,'scripts/verify-b3-preservation.mjs'))),
+     sha(execFileSync('git',['show',I1_BASE+':scripts/verify-b3-preservation.mjs'], { cwd: root })));
+ });
+@@ -131,3 +132,40 @@ for (const [name, mutate] of [
+   assert.notEqual(changed,text,'The mutation must actually affect the CI bridge');
+   s.current.set(path,Buffer.from(changed)); refused(s,/^I1_CONTENT_CHANGED:/);
+ });
++
++
++test('I2 fixed merged checkpoint permits exactly six additions and four transformations', () => {
++  assert.equal(I2_BASE, 'b3df5def93688d9d68fad39a9a61e96b5c4ba437');
++  assert.equal(I2_ADDED.length, 6); assert.equal(I2_MODIFIED.length, 4);
++  assert.ok(Object.isFrozen(I2_ADDED) && Object.isFrozen(I2_MODIFIED));
++  assert.equal(new Set([...I2_ADDED,...I2_MODIFIED]).size, 10);
++  const r = validateSnapshot(copy());
++  assert.equal(r.i2PublishedFiles, 178); assert.equal(r.candidateFiles, 184);
++  assert.equal(r.i2ProtectedFiles, 174); assert.equal(r.byteIdentical, 94);
++  for (const [path,bytes] of original.i2Base) if (!I2_MODIFIED.includes(path)) assert.deepEqual(original.current.get(path),bytes);
++});
++test('I2 preserves every I1 content pin and normalized self-hash declaration', () => {
++  const path='scripts/verify-b4-preservation.mjs';
++  const baseline=execFileSync('git',['--no-replace-objects','show',I2_BASE+':'+path],{cwd:root}).toString();
++  const current=readFileSync(resolve(root,path),'utf8');
++  for (const pattern of [/^const I1_VERIFIER_HASH = '[a-f0-9]{64}';$/m,/const I1_CONTENT = Object.freeze\(\{[\s\S]*?\}\);/])
++    assert.equal(current.match(pattern)?.[0],baseline.match(pattern)?.[0]);
++  const legacy = baseline.slice(baseline.indexOf('export function validateSnapshot(s) {'),
++    baseline.indexOf('if (process.argv[1] && resolve(process.argv[1])'))
++    .replace('export function validateSnapshot(s) {','function validateI1Snapshot(s) {');
++  assert.ok(current.includes(legacy), 'Historical I1 validator body must stay unchanged');
++  assert.deepEqual(original.current.get('prototype/mcp-local/integration/identity-core.ts'),original.i2Base.get('prototype/mcp-local/integration/identity-core.ts'));
++});
++test('I2 content, ancestry, inventory and its own digest reject unapproved changes', () => {
++  for (const path of [...I2_ADDED,...I2_MODIFIED]) {
++    const s=copy();s.current.set(path,Buffer.concat([s.current.get(path),Buffer.from('\n')]));
++    refused(s,/^(?:I2_CONTENT_CHANGED:|I1_CONTENT_CHANGED:|M1_PUBLISHED_CHANGED:)/);
++    const missing=copy();missing.current.delete(path);refused(missing,/^CANDIDATE_INVENTORY$/);
++  }
++  refused({...copy(),i2Ancestor:false},/^I2_BASE_DIVERGED$/);
++  const s=copy();s.i2Base=new Map(original.i2Base);s.i2Base.delete('src/b3/adapter.ts');refused(s,/^I2_BASE_INVENTORY$/);
++  const v=copy(),path='scripts/verify-b4-preservation.mjs';
++  v.current.set(path,Buffer.from(v.current.get(path).toString().replace(/^const I2_VERIFIER_HASH = '[a-f0-9]{64}';$/m,
++    "const I2_VERIFIER_HASH = '"+'f'.repeat(64)+"';")));
++  refused(v,/^I1_CONTENT_CHANGED:scripts\/verify-b4-preservation\.mjs$/);
++});
+diff --git a/prototype/mcp-local/i2/identity-worker.ts b/prototype/mcp-local/i2/identity-worker.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..53e9f806fd521b894afe2be70675441da4f4459d
+--- /dev/null
++++ b/prototype/mcp-local/i2/identity-worker.ts
+@@ -0,0 +1,56 @@
++import { DurableObject } from 'cloudflare:workers';
++import { z } from 'zod';
++import { AppError } from '../../../src/errors';
++import { VerifiedIdentityHandles } from '../integration/identity-core';
++import { bounded, reject } from '../integration/contracts';
++import { IDENTITY_NAME, identityVerifier } from './identity-config';
++
++interface IdentityEnv {
++  I2_MODE: string;
++  I2_JWKS: unknown;
++  I2_IDENTITIES: DurableObjectNamespace<I2Identity>;
++}
++// Private DO only: no fixture, seed, clock control, grants or persisted JWTs.
++export class I2Identity extends DurableObject<IdentityEnv> {
++  private readonly handles: VerifiedIdentityHandles;
++  constructor(ctx: DurableObjectState, env: IdentityEnv) {
++    super(ctx, env);
++    const verifier = identityVerifier(env);
++    this.handles = new VerifiedIdentityHandles(async assertion => {
++      try { return await verifier.authenticate(new Request('http://127.0.0.1/', {
++        headers: { 'Cf-Access-Jwt-Assertion': assertion }
++      })); }
++      catch (error) {
++        if (error instanceof AppError && error.code === 'ACCESS_DENIED') return reject('INTEGRATION_IDENTITY_DENIED');
++        return reject('INTEGRATION_DEPENDENCY_UNAVAILABLE');
++      }
++    });
++  }
++  issue(input: unknown) { return this.handles.issue(input); }
++  lookup(input: unknown, consume = false) { return this.handles.lookup(input, consume); }
++  cancel(handle: string) { return this.handles.cancel(handle); }
++}
++const envelope = z.strictObject({ args: z.unknown() });
++const lookup = z.strictObject({ input: z.unknown(), consume: z.boolean() });
++const unavailable = () => Response.json({ ok: false }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
++export default {
++  async fetch(request: Request, env: IdentityEnv): Promise<Response> {
++    try {
++      identityVerifier(env);
++      const url = new URL(request.url);
++      if (url.origin !== 'https://m1-ports.invalid' || url.search || url.hash || request.method !== 'POST'
++        || !['/identity/issue','/identity/lookup','/identity/cancel'].includes(url.pathname)
++        || !/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') ?? '')) return unavailable();
++      const bytes = await bounded(request.body, 1000, request.signal);
++      const body = envelope.parse(JSON.parse(new TextDecoder().decode(bytes)));
++      if (!Object.hasOwn(body, 'args')) return unavailable();
++      const stub = env.I2_IDENTITIES.get(env.I2_IDENTITIES.idFromName(IDENTITY_NAME));
++      let value: unknown;
++      if (url.pathname === '/identity/issue') value = await stub.issue(body.args);
++      else if (url.pathname === '/identity/lookup') {
++        const args = lookup.parse(body.args); value = await stub.lookup(args.input, args.consume);
++      } else { await stub.cancel(z.string().uuid().parse(body.args)); value = null; }
++      return Response.json({ ok: true, value }, { headers: { 'Cache-Control': 'no-store' } });
++    } catch { return unavailable(); }
++  }
++};
+diff --git a/prototype/mcp-local/i2/identity-config.ts b/prototype/mcp-local/i2/identity-config.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..2ab29e1cf76d87f440da9c6e280f74a5cc6d75de
+--- /dev/null
++++ b/prototype/mcp-local/i2/identity-config.ts
+@@ -0,0 +1,25 @@
++import { z } from 'zod';
++import { createLocalJWKSet } from 'jose';
++import { AccessIdentityVerifier } from '../../../src/preparation/access-identity';
++import { PRODUCTION_ORIGIN, PRODUCTION_REDIRECT_URI } from '../../../src/preparation/config';
++import { ISSUER, AUDIENCE } from '../src/synthetic';
++
++export const IDENTITY_MODE = 'I2_IDENTITY_FICTIONAL_LOCAL_ONLY';
++export const IDENTITY_NAME = 'local-identity-authority';
++const publicKeys = z.strictObject({ keys: z.array(z.strictObject({
++  kty: z.literal('RSA'), alg: z.literal('RS256'), use: z.literal('sig'),
++  kid: z.literal('synthetic-ephemeral'), n: z.string().regex(/^[\w-]{300,1000}$/), e: z.literal('AQAB')
++})).length(1) });
++export function identityVerifier(input: unknown) {
++  const value = z.strictObject({ I2_MODE: z.literal(IDENTITY_MODE), I2_JWKS: publicKeys,
++    I2_IDENTITIES: z.custom<DurableObjectNamespace>(v => !!v && typeof v === 'object'
++      && typeof (v as DurableObjectNamespace).idFromName === 'function'
++      && typeof (v as DurableObjectNamespace).get === 'function') }).parse(input);
++  // Same synthetic issuer, audience, operators and signature policy as I1.
++  // No remote key resolver, new role, account selector or production switch.
++  return new AccessIdentityVerifier({ stage: 'production-preparation', transport: 'disabled', tenant: 'conduz_cobre',
++    publicOrigin: PRODUCTION_ORIGIN, redirectUri: PRODUCTION_REDIRECT_URI, accessIssuer: ISSUER, accessAudience: AUDIENCE,
++    operatorRoles: { 'synthetic-operator-a': 'viewer', 'synthetic-operator-b': 'viewer' },
++    accountRef: 'synthetic-local-only', expectedSellerId: '42'
++  }, createLocalJWKSet(value.I2_JWKS));
++}
+diff --git a/prototype/mcp-local/scripts/build-i2-identity.mjs b/prototype/mcp-local/scripts/build-i2-identity.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..0d1b7fc2a144fc8afbd69190f14a3c89eb85ed75
+--- /dev/null
++++ b/prototype/mcp-local/scripts/build-i2-identity.mjs
+@@ -0,0 +1,29 @@
++import assert from 'node:assert/strict';
++import { build } from 'esbuild';
++import ts from 'typescript';
++import { mkdir, writeFile } from 'node:fs/promises';
++import { resolve } from 'node:path';
++import { fileURLToPath } from 'node:url';
++const project = fileURLToPath(new URL('..', import.meta.url));
++assert.equal(process.version, 'v24.22.1'); assert.equal(process.versions.undici, '7.30.1');
++// Typecheck new files with the existing strict compiler configuration, unchanged.
++const file = resolve(project, 'tsconfig.homologation.json');
++const config = ts.readConfigFile(file, ts.sys.readFile); if (config.error) throw new Error('I2_TSC_CONFIG');
++const parsed = ts.parseJsonConfigFileContent({ ...config.config, include: ['i2/**/*.ts'] }, ts.sys, project);
++const program = ts.createProgram(parsed.fileNames, { ...parsed.options, noEmit: true });
++const diagnostics = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)];
++if (diagnostics.length) throw new Error(ts.formatDiagnosticsWithColorAndContext(diagnostics, {
++  getCanonicalFileName: f => f, getCurrentDirectory: () => project, getNewLine: () => '\n'
++}));
++const work = resolve(project, 'work/i2-identity'); await mkdir(work, { recursive: true });
++const result = await build({ absWorkingDir: project, entryPoints: ['i2/identity-worker.ts'],
++  outfile: resolve(work, 'identity.mjs'), bundle: true, platform: 'browser', format: 'esm',
++  conditions: ['workerd','browser'], external: ['cloudflare:workers'], metafile: true });
++const inputs = Object.keys(result.metafile.inputs);
++assert.ok(inputs.includes('integration/identity-core.ts'));
++assert.ok(inputs.includes('../../src/preparation/access-identity.ts'));
++assert.ok(inputs.every(p => !/tests\/fixtures\/|scripts\/|recovery\/storage|integration\/identity\.ts$/.test(p)));
++assert.deepEqual(Object.values(result.metafile.outputs).flatMap(o => o.exports).sort(), ['I2Identity','default']);
++await writeFile(resolve(work, 'build-report.json'), JSON.stringify({ syntheticOnly: true, productionReady: false,
++  deployAuthorized: false, typecheck: 'PASS', privateInputs: inputs, exports: ['I2Identity','default'] }, null, 2)+'\n');
++console.log('I2 private identity: typecheck and isolated bundle PASS');
+diff --git a/prototype/mcp-local/scripts/i2-identity-harness.mjs b/prototype/mcp-local/scripts/i2-identity-harness.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..065e543c185664090923e21a909d3175c2872091
+--- /dev/null
++++ b/prototype/mcp-local/scripts/i2-identity-harness.mjs
+@@ -0,0 +1,49 @@
++import assert from 'node:assert/strict';
++import { resolve } from 'node:path';
++import { fileURLToPath } from 'node:url';
++import { createHomologationFixture } from './homologation-harness.mjs';
++
++const project = fileURLToPath(new URL('..', import.meta.url));
++const workerName = 'i2-identity', objectName = 'local-identity-authority';
++const object = { className: 'I2Identity', scriptName: workerName, useSQLite: true, unsafeUniqueKey: 'i2-local-identity-v1' };
++// Privileged Node-only seam. No Worker binding exposes these lifecycle controls.
++export async function createI2IdentityFixture() {
++  let runtime;
++  const identityRuntime = {
++    onRuntime(value) { runtime = value; },
++    configureBackend(options) {
++      const { host, port, inspectorHost, inspectorPort, cf, resourcePersistencePath, ...backend } = options;
++      return { host, port, inspectorHost, inspectorPort, cf, resourcePersistencePath,
++        workers: [
++          { ...backend, name: 'i1-backend', durableObjects: { ...backend.durableObjects, INTEGRATION_IDENTITY: object } },
++          { name: workerName, modules: true, scriptPath: resolve(project, 'work/i2-identity/identity.mjs'),
++            compatibilityDate: backend.compatibilityDate, outboundService: backend.outboundService,
++            bindings: { I2_MODE: 'I2_IDENTITY_FICTIONAL_LOCAL_ONLY', I2_JWKS: backend.bindings.SYNTHETIC_JWKS },
++            durableObjects: { I2_IDENTITIES: object } }
++        ] };
++    },
++    async fetch(request, currentRuntime) {
++      runtime = currentRuntime;
++      return (await runtime.getWorker(workerName)).fetch(request);
++    }
++  };
++  const fixture = await createHomologationFixture({ identityRuntime });
++  return {
++    async open(options) {
++      const h = await fixture.open(options);
++      const current = runtime; assert.ok(current);
++      return { ...h,
++        async identity(method, args) {
++          const response = await (await current.getWorker(workerName)).fetch(new Request('https://m1-ports.invalid/identity/' + method, {
++            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ args })
++          }));
++          return { status: response.status, body: await response.json() };
++        },
++        async privateRequest(request) { return (await current.getWorker(workerName)).fetch(request); },
++        async restartIdentity() {
++          await current.unsafeEvictDurableObject(workerName, 'I2Identity', { name: objectName });
++        }
++      };
++    }
++  };
++}
+diff --git a/prototype/mcp-local/lab/tests/i2-identity.node.mjs b/prototype/mcp-local/lab/tests/i2-identity.node.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..3f40ff8915d806a6c5d488de48d8ac2698166599
+--- /dev/null
++++ b/prototype/mcp-local/lab/tests/i2-identity.node.mjs
+@@ -0,0 +1,176 @@
++import { test, after } from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
++import { resolve, relative } from 'node:path';
++import { fileURLToPath, pathToFileURL } from 'node:url';
++import { execFileSync } from 'node:child_process';
++import { build } from 'esbuild';
++import { generateKeyPair, exportJWK } from 'jose';
++
++const project = fileURLToPath(new URL('../..', import.meta.url)), root = resolve(project, '../..');
++await import('../../scripts/build-homologation.mjs');
++await import('../../scripts/build-i2-identity.mjs');
++const { createI2IdentityFixture } = await import('../../scripts/i2-identity-harness.mjs');
++const evidence = [];
++async function setup(t, provision = true) {
++  const directory = mkdtempSync(resolve(project, 'work/i2-case-'));
++  const fixture = await createI2IdentityFixture();
++  const h = await fixture.open({ path: resolve(directory, 'state') });
++  t.after(async () => {
++    try {
++      await h.close(); assert.equal(h.outboundAttempts(), 0);
++      assert.deepEqual(h.resources(), { front: { closed: true, clients: 0, requests: 0, fetches: 0 },
++        backend: { closed: true, clients: 0, requests: 0, fetches: 0 }, portTasks: 0 });
++      h.assertRedacted(h.wire); h.assertRedacted(h.driver.trace());
++    } finally { rmSync(directory, { recursive: true, force: true }); }
++  });
++  if (provision) { await h.driver.provision(); await h.driver.seed(); }
++  return h;
++}
++const denied = (result, code) => assert.deepEqual(result, {
++  _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'conduz-cobre-synthetic-read', version: '0.0.1' } },
++  isError: true, content: [{ type: 'text', text: code }]
++});
++async function using(h, who, run, mode = { pin: '2026-07-28' }) {
++  const c = await h.connect('synthetic-operator-' + who, mode);
++  try { return await run(c); } finally { await c.close(); }
++}
++function scenario(name, run) {
++  test('I2 identity: ' + name, { timeout: 30000 }, async t => {
++    await run(t); evidence.push({ name, result: 'PASS' });
++  });
++}
++const argumentsFor = (who, tool) => ({ account_ref: 'account-' + who,
++  ...(tool === 'listing' ? { item_id: 'MLB_SYNTH_' + who.toUpperCase() + '_001' } : {}) });
++scenario('separate identity Worker serves both accounts and all three tools in both MCP profiles', async t => {
++  const h = await setup(t);
++  for (const mode of [{ pin: '2026-07-28' }, 'legacy']) for (const who of ['a','b']) {
++    await using(h, who, async c => {
++      assert.deepEqual((await c.listTools()).tools.map(t => t.name), ['account','listings','listing']);
++      for (const tool of ['account','listings','listing']) {
++        const result = await c.callTool({ name: tool, arguments: argumentsFor(who, tool) });
++        assert.equal(result.isError, undefined); assert.equal(result.structuredContent.source, 'synthetic');
++        assert.equal(result.structuredContent.untrusted_data, true); h.assertRedacted(result);
++      }
++    }, mode);
++  }
++  assert.ok(h.driver.trace().some(x => x.port === 'identity' && x.method === 'issue'));
++  // Success requires the backend vault to find the handle issued through the private service.
++  assert.ok(h.driver.trace().some(x => x.port === 'identity' && x.method === 'lookup'));
++});
++scenario('cross-account access is explicitly denied without provider I/O', async t => {
++  const h = await setup(t);
++  for (const who of ['a','b']) await using(h, who, async c => {
++    for (const tool of ['account','listings','listing']) denied(await c.callTool({ name: tool,
++      arguments: argumentsFor(who === 'a' ? 'b' : 'a', tool) }), 'INTEGRATION_READ_DENIED');
++  });
++  assert.equal((await h.driver.events()).filter(x => x.phase === 'provider').length, 0);
++});
++scenario('JWT policy is the inherited signature, issuer, audience, operator and expiry policy', async t => {
++  const h = await setup(t);
++  for (const [who, claims] of [['unknown', {}], ['synthetic-operator-a', { aud: 'wrong' }],
++    ['synthetic-operator-a', { iss: 'https://other.invalid' }], ['synthetic-operator-a', { exp: 1 }]]) {
++    const r = await h.identity('issue', { assertion: await h.assertion(who, claims), commandDigest: 'a'.repeat(43) });
++    assert.equal(r.status, 200); assert.deepEqual(r.body, { ok: true, value: { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' } });
++  }
++  const malformed = await h.identity('issue', { assertion: 'not-a-jwt', commandDigest: 'a'.repeat(43) });
++  assert.deepEqual(malformed.body.value, { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
++});
++scenario('private service exclusive consumption, reuse and independence', async t => {
++  const h = await setup(t), assertion = await h.assertion();
++  const issue = async digest => {
++    const r = await h.identity('issue', { assertion, commandDigest: digest });
++    assert.equal(r.status, 200); assert.equal(r.body.value.ok, true); return r.body.value;
++  };
++  const digest = 'a'.repeat(43), first = await issue(digest), other = await issue('b'.repeat(43));
++  const input = issued => ({ handle: issued.handle, subject: issued.principal.subject,
++    expiresAt: issued.principal.expiresAt, commandDigest: issued === first ? digest : 'b'.repeat(43) });
++  const pending = [0,1].map(() => h.identity('lookup', { input: input(first), consume: true }));
++  const results = await Promise.all(pending);
++  assert.equal(results.filter(r => r.body.value.ok).length, 1);
++  assert.ok(results.every(r => r.status === 200));
++  assert.deepEqual(results.find(r => !r.body.value.ok).body.value, { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
++  assert.deepEqual((await h.identity('lookup', { input: input(first), consume: true })).body.value,
++    { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
++  assert.equal((await h.identity('lookup', { input: input(other), consume: true })).body.value.ok, true);
++  // Deterministic post-verification completion orders remain covered by the unchanged I1 core tests.
++});
++scenario('private cancellation invalidates a handle without claiming crypto interruption', async t => {
++  const h = await setup(t), issued = (await h.identity('issue', {
++    assertion: await h.assertion(), commandDigest: 'a'.repeat(43) })).body.value;
++  assert.equal(issued.ok, true);
++  assert.deepEqual((await h.identity('cancel', issued.handle)).body, { ok: true, value: null });
++  assert.deepEqual((await h.identity('lookup', { input: { handle: issued.handle, subject: issued.principal.subject,
++    expiresAt: issued.principal.expiresAt, commandDigest: 'a'.repeat(43) }, consume: true })).body.value,
++    { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
++});
++scenario('identity object restart loses ephemeral handles and requires fresh verification', async t => {
++  const h = await setup(t), assertion = await h.assertion();
++  const issued = (await h.identity('issue', { assertion, commandDigest: 'a'.repeat(43) })).body.value;
++  assert.equal(issued.ok, true); await h.restartIdentity();
++  assert.deepEqual((await h.identity('lookup', { input: { handle: issued.handle, subject: issued.principal.subject,
++    expiresAt: issued.principal.expiresAt, commandDigest: 'a'.repeat(43) }, consume: false })).body.value,
++    { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
++  assert.equal((await h.identity('issue', { assertion, commandDigest: 'b'.repeat(43) })).body.value.ok, true);
++  await using(h, 'a', async c => assert.equal((await c.callTool({ name: 'account', arguments: argumentsFor('a','account') })).isError, undefined));
++});
++scenario('identity transport failure is dependency unavailable, never a read denial', async t => {
++  const h = await setup(t), before = await h.driver.head();
++  h.driver.portFault('identity', 'ECONNRESET');
++  await using(h, 'a', async c => denied(await c.callTool({ name: 'account', arguments: argumentsFor('a','account') }), 'INTEGRATION_DEPENDENCY_UNAVAILABLE'));
++  h.driver.portFault('identity', ''); assert.deepEqual(await h.driver.head(), before);
++  assert.equal((await h.driver.events()).filter(x => x.phase === 'provider').length, 0);
++});
++scenario('private routes and selectors are closed; no administration or external URL forwarding', async t => {
++  const h = await setup(t);
++  for (const path of ['/identity/seed','/identity/fixture','/identity/refresh','/identity/grant','/oauth/start']) {
++    const response = await h.privateRequest(new Request('https://m1-ports.invalid'+path, {
++      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ args: null }) }));
++    assert.equal(response.status, 503); assert.deepEqual(await response.json(), { ok: false });
++  }
++  for (const url of ['https://api.mercadolibre.com/identity/issue', 'https://m1-ports.invalid/identity/issue?url=https://other.invalid']) {
++    assert.equal((await h.privateRequest(new Request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"args":null}' }))).status, 503);
++  }
++  assert.deepEqual((await h.identity('issue', { assertion: await h.assertion(), commandDigest: 'a'.repeat(43), role: 'administrator' })).body.value,
++    { ok: false, code: 'INTEGRATION_IDENTITY_DENIED' });
++  assert.equal((await h.raw({ path: '/identity/issue', method: 'GET', token: '' })).status, 404);
++});
++scenario('empty laboratory does not bootstrap grants or tokens', async t => {
++  const h = await setup(t, false);
++  await using(h, 'a', async c => denied(await c.callTool({ name: 'account', arguments: argumentsFor('a','account') }), 'INTEGRATION_DEPENDENCY_UNAVAILABLE'));
++  assert.equal((await h.driver.tokenState()).row, undefined);
++  assert.equal((await h.driver.events()).filter(x => x.phase === 'provider').length, 0);
++});
++test('I2 identity: configuration refuses operational modes, private JWKS, extra bindings and foreign selectors', async () => {
++  const file = resolve(project, 'work/i2-identity/config-test.mjs');
++  await build({ absWorkingDir: project, entryPoints: ['i2/identity-config.ts'], outfile: file,
++    bundle: true, platform: 'browser', format: 'esm' });
++  const { identityVerifier } = await import(pathToFileURL(file).href);
++  const pair = await generateKeyPair('RS256'); const publicKey = await exportJWK(pair.publicKey);
++  const valid = { I2_MODE: 'I2_IDENTITY_FICTIONAL_LOCAL_ONLY',
++    I2_JWKS: { keys: [{ ...publicKey, alg: 'RS256', use: 'sig', kid: 'synthetic-ephemeral' }] },
++    I2_IDENTITIES: { idFromName() {}, get() {} } };
++  assert.ok(identityVerifier(valid));
++  for (const bad of [{ ...valid, I2_MODE: 'production' }, { ...valid, SECRET: 'not-a-secret' },
++    { ...valid, issuer: 'https://other.invalid' }, { ...valid, I2_JWKS: { keys: [{ ...valid.I2_JWKS.keys[0], d: 'PRIVATE_KEY_REFUSED' }] } }]) {
++    assert.throws(() => identityVerifier(bad));
++  }
++});
++test('I2 identity: private artifact has no fixture graph and public I1 artifact inputs stay byte-identical', () => {
++  const report = JSON.parse(readFileSync(resolve(project, 'work/i2-identity/build-report.json')));
++  assert.equal(report.typecheck, 'PASS'); assert.equal(report.deployAuthorized, false);
++  const privateCode = readFileSync(resolve(project, 'work/i2-identity/identity.mjs'), 'utf8');
++  assert.doesNotMatch(privateCode, /mutationSchema|recoveryPlanSchema|simulatedMfa|updateSchema|revokeSchema|RecoveryDriver/);
++  const front = JSON.parse(readFileSync(resolve(project, 'work/homologation/build-report.json')));
++  assert.deepEqual(front.publicExports, ['default']);
++  for (const name of front.publicInputs.filter(n => !n.includes('node_modules/'))) {
++    const path = resolve(project, name), rel = relative(root, path).replaceAll('\\','/');
++    assert.ok(!rel.includes('/i2/'));
++    assert.deepEqual(readFileSync(path), execFileSync('git', ['show','b3df5def93688d9d68fad39a9a61e96b5c4ba437:'+rel], { cwd: root }));
++  }
++});
++after(() => writeFileSync(resolve(project, 'work/i2-identity/test-evidence.json'), JSON.stringify({
++  syntheticOnly: true, productionReady: false, noRealCredentials: true, scenarios: evidence,
++  cancellationDuringVerification: 'unchanged I1 deterministic core regression; service test covers handle invalidation',
++  concurrentCompletionOrders: 'unchanged I1 deterministic core regression; service test covers parallel private requests'
++}, null, 2)+'\n'));
+diff --git a/prototype/mcp-local/docs/i2-identity.md b/prototype/mcp-local/docs/i2-identity.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..c5d87549769322656a38f2a41b8eefe335fa1ef8
+--- /dev/null
++++ b/prototype/mcp-local/docs/i2-identity.md
+@@ -0,0 +1,91 @@
++# I2 local — serviço privado de identidade
++
++Checkpoint imutável: main `b3df5def93688d9d68fad39a9a61e96b5c4ba437` (I1 incorporada, 178 arquivos).
++Este incremento acrescenta seis arquivos e transforma quatro caminhos fechados. Os hashes I1,
++o autohash I1, as exceções históricas e os contratos de negócio não são substituídos.
++O verificador exige o checkpoint I1 íntegro e uma projeção histórica válida; exige separadamente
++os dez conteúdos I2 aprovados e os outros 174 arquivos idênticos. São 184 arquivos candidatos.
++Os contadores históricos do relatório descrevem o checkpoint/projeção I1; `i2ProtectedFiles`
++descreve os arquivos atuais inalterados. Não há fallback do candidato I2 para outra época.
++
++## Escopo nominal
++
++Adições, sob `prototype/mcp-local/`: `i2/identity-worker.ts`, `i2/identity-config.ts`,
++`scripts/build-i2-identity.mjs`, `scripts/i2-identity-harness.mjs`,
++`lab/tests/i2-identity.node.mjs` e este documento.
++Alterações: `scripts/homologation-harness.mjs`, `tests/homologation.test.mjs` neste subprojeto;
++`scripts/verify-b4-preservation.mjs` e `tests/b4/m21-preservation.node.mjs` na raiz.
++
++## Bindings, rotas e egress
++
++| Componente | Binding/capacidade | Limite |
++|---|---|---|
++| Worker privado `i2-identity` | `I2_MODE` | Somente `I2_IDENTITY_FICTIONAL_LOCAL_ONLY` |
++| Worker privado | `I2_JWKS` | Uma chave pública RS256 efêmera, `synthetic-ephemeral`; sem chave privada |
++| Worker privado | `I2_IDENTITIES` | DO `I2Identity`, nome interno `local-identity-authority` |
++| Backend de cofre I1 | `INTEGRATION_IDENTITY` | Mesma classe/namespace no Worker `i2-identity` |
++| Frente MCP | `HML_IDENTITY` | Serviço privado; envelopes I1 `issue`, `lookup`, `cancel` |
++| Frente e demais portas | Bindings I1 existentes | Registro, grants, referência e cofres não são substituídos |
++
++A frente continua aceitando apenas `/mcp` no loopback. O serviço privado aceita somente
++POST JSON para `https://m1-ports.invalid/identity/issue`, `/lookup` e `/cancel`, por capacidade
++do harness. A URL `.invalid` não é um destino de rede: é entregue ao binding de Worker.
++Não há rota de fixture, administração, OAuth, refresh, grant ou seleção de namespace/conta.
++O serviço privado não é encaminhado pelo listener público local da frente/backend.
++O envelope privado continua `{args: ...}` / `{ok:true,value:...}`; falha de transporte/protocolo
++continua indisponibilidade constante. O corpo está limitado pelo leitor I1 a 16 KiB e 1 segundo.
++
++Todos os Workers recebem o mesmo bloqueador de egress do harness I1, que conta tentativas
++e responde 503. Cada cenário exige zero tentativas. Não há resolução JWKS remota, credencial
++comercial, recurso Cloudflare, deploy ou conexão com Mercado Livre/ChatGPT. As duas identidades,
++issuer, audience, papéis e política JWT são exatamente os da I1. Não há nova política Access.
++
++## Reutilização e isolamento
++
++`I2Identity` utiliza o core `VerifiedIdentityHandles` corrigido e `AccessIdentityVerifier` existente,
++com `createLocalJWKSet`. O bundle privado não importa o wrapper `integration/identity.ts`, fixtures,
++drivers, recuperação administrativa ou scripts. Sua classe não tem API de seed/fixture/clock.
++Os handles e assertions ficam somente em memória da instância; não são persistidos em SQLite.
++Reiniciar/evictar o objeto perde os handles e exige emitir novas evidências após validar o JWT.
++O Worker e DO privados são separados do Worker backend, mas compartilham um processo workerd
++local. Isso não comprova segregação IAM, independência operacional ou custódia real de chaves.
++
++O harness I1 conserva seu caminho padrão sem opções. A opção Node `identityRuntime` é uma
++capacidade privilegiada de teste, sem binding ou parâmetro MCP correspondente. A variante I2
++troca somente o destino de identidade; o sucesso de uma leitura exige que o cofre encontre
++na autoridade privada o handle emitido pela frente. Não provisiona grants/tokens automaticamente.
++
++## Aceite e limites da prova
++
++O filho `lab/tests/i2-identity.node.mjs` exercita as três ferramentas e dois perfis para A/B,
++negação cruzada antes de provider, JWT inválido, consumo concorrente, reutilização, independência,
++cancelamento, reinício real do DO, indisponibilidade, rotas fechadas e laboratório sem bootstrap.
++Inspeciona o bundle privado e compara os inputs de aplicação do bundle público com a main I1.
++O fechamento exige recursos registrados liberados e zero egress; não é prova universal do runtime.
++
++As ordens determinísticas de retomada **durante** a verificação e o cancelamento de um consumo
++pendente continuam comprovados pelos sete testes inalterados do core, no filho de fronteiras I1.
++O teste do novo serviço usa requisições paralelas reais; não declara controle sobre o escalonador
++workerd. Seu teste de cancelamento comprova invalidação do handle, não interrupção criptográfica.
++O reinício é eviction de DO no Miniflare; não é homologação de failover/hibernação no provedor.
++
++Execução a partir de `prototype/mcp-local`, com Node 24.22.1 / Undici 7.30.1 e dependências
++já aprovadas, sem atualização:
++
++```sh
++node scripts/build-i2-identity.mjs
++node --test lab/tests/i2-identity.node.mjs
++node scripts/ci.mjs run integration
++node scripts/ci.mjs run homologation
++```
++
++O build executa typecheck estrito usando a configuração TypeScript existente com inclusão
++explícita dos dois arquivos novos; não altera tsconfig nem emite JS no source. A homologação
++inscreve explicitamente o filho I2, sem alterar dispatcher, workflow ou limite de 300 segundos.
++Os artefatos ficam somente em `work/` ignorado. Contagens, resultados e falhas reais devem ser
++registrados pelo executor; este documento não declara aprovação antecipada.
++
++Continuam aceitas somente para I1 sintética as ressalvas anteriores de observabilidade e
++intermitência inconclusiva; este incremento não afirma corrigi-las. PITR real continua skip
++esperado e não homologado. MFA/quorum, referência independente, recuperação operacional,
++custódia, egress e autenticação reais, OAuth e ChatGPT exigem autorização própria futura.
