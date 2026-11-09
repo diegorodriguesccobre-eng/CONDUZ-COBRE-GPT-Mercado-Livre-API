@@ -2,7 +2,7 @@ import { it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile, readdir, cp } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash, createHmac } from 'node:crypto';
 import { createConnection } from 'node:net';
 import { generateKeyPair } from 'jose';
 import { startRecovery, pairA, pairB, subjects, grantFor, approvalPlan, value } from '../scripts/recovery-harness.mjs';
@@ -12,6 +12,7 @@ import { expectSingleCasWinner } from './fixtures/concurrency-assertions.mjs';
 await import('../scripts/build-recovery.mjs');
 const coverage = [];
 const raceEvidence = [];
+const auditEvidence = [];
 async function portClosed(url) {
   await new Promise((resolve, reject) => {
     const socket = createConnection({ host: url.hostname, port: Number(url.port) });
@@ -342,10 +343,119 @@ check(44, 'lost reference history cannot be replaced by old grants', async t => 
   const { h } = await setup(t); await h.stores.reference.fixture({ kind: 'restore', value: { rows: [], events: [] } }); await denied(h);
   await rejects(h.recover(approvalPlan({ state: { seq: 2 }, root: 'old', gateRevision: 1 })), 'CORRUPT_OR_INVALID');
 });
+const auditRecordNames = new Set(['enrollment-simulated', 'hold', 'mutation-fenced', 'revocation-fenced',
+  'mutation-confirmed', 'recovery-started-simulated', 'recovery-completed-simulated']);
+const auditOpaqueCanaries = ['SYNTHETIC_ACCESS_TOKEN_R145', 'SYNTHETIC_KEY_R145', 'SYNTHETIC_COMMERCIAL_R145']
+  .map(value => value.padEnd(43, '0'));
+function assertReferenceAudit(events) {
+  assert.ok(Array.isArray(events)); assert.equal(Object.getPrototypeOf(events), Array.prototype);
+  assert.ok(events.length > 0);
+  assert.deepEqual(Reflect.ownKeys(events), [...Array.from({ length: events.length }, (_, i) => String(i)), 'length']);
+  for (let i = 0; i < events.length; i++) {
+    const entry = Object.getOwnPropertyDescriptor(events, String(i)); assert.ok(entry && Object.hasOwn(entry, 'value'));
+    const event = entry.value;
+    assert.ok(event !== null && typeof event === 'object'); assert.equal(Object.getPrototypeOf(event), Object.prototype);
+    const descriptors = Object.getOwnPropertyDescriptors(event), keys = Reflect.ownKeys(event);
+    assert.ok(keys.every(key => typeof key === 'string'));
+    for (const key of keys) assert.ok(Object.hasOwn(descriptors[key], 'value') && descriptors[key].enumerable);
+    assert.equal(typeof descriptors.event?.value, 'string');
+    const name = descriptors.event.value;
+    const record = auditRecordNames.has(name), decision = name === 'allow' || name === 'deny';
+    assert.ok(record || decision || name === 'deny-fenced', 'Unexpected persisted reference event');
+    const expected = record ? ['event', 'sequence', 'gateRevision', 'root']
+      : decision ? ['event', 'account', 'subject', 'permission', 'sequence', 'root'] : ['event', 'account', 'subject', 'sequence'];
+    assert.deepEqual([...keys].sort(), expected.sort());
+    for (const { value } of Object.values(descriptors)) if (typeof value === 'string') {
+      assert.doesNotMatch(value, /[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/, 'Complete JWT/JWS must never be audited');
+      assert.doesNotMatch(value, /-----BEGIN (?:[A-Z ]+)?PRIVATE KEY-----|(?:^|\s)(?:Authorization\s*:|Bearer\s+|Basic\s+)|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/i);
+      assert.ok(!auditOpaqueCanaries.includes(value), 'Forbidden synthetic opaque material');
+    }
+    assert.ok(Number.isSafeInteger(event.sequence) && event.sequence >= 0 && event.sequence < Number.MAX_SAFE_INTEGER);
+    if (record) assert.ok(Number.isSafeInteger(event.gateRevision) && event.gateRevision > 0 && event.gateRevision < Number.MAX_SAFE_INTEGER);
+    else {
+      assert.ok(['account-a', 'account-b'].includes(event.account)); assert.ok(subjects.includes(event.subject));
+      if (decision) assert.ok(['read', 'connect'].includes(event.permission));
+    }
+    if (record || decision) {
+      assert.equal(typeof event.root, 'string'); assert.match(event.root, /^[A-Za-z0-9_-]{43}$/);
+      const bytes = Buffer.from(event.root, 'base64url'); assert.equal(bytes.length, 32);
+      assert.equal(bytes.toString('base64url'), event.root, 'Digest must use canonical SHA-256/base64url encoding');
+    }
+  }
+}
 check(45, 'audit excludes JWTs, secrets and commercial data', async t => {
   const { h } = await setup(t); await read(h); await h.change('revoke'); await denied(h);
   const events = await h.stores.reference.events(); assert.ok(events.some(e => e.event === 'allow')); assert.ok(events.some(e => e.event === 'revocation-fenced'));
-  const text = JSON.stringify(events); assert.doesNotMatch(text, /eyJ|privateKey|authorization|SYNTHETIC ACCOUNT|price|access_token|refresh_token|@/i);
+  assertReferenceAudit(events);
+  auditEvidence.push({ caseId: 'R1-45', source: 'persisted RecoveryReference.events()', events });
+});
+const auditDigest = createHash('sha256').update('SYNTHETIC-R145-DIGEST-3104').digest('base64url');
+const auditDecision = () => ({ event: 'allow', ...pairA, permission: 'read', sequence: 2, root: auditDigest });
+const auditRefused = events => assert.throws(() => assertReferenceAudit(events), { code: 'ERR_ASSERTION' });
+it('R1-45-A01: a real fixed SHA-256 digest containing eYJ is accepted; the old assertion rejects it', () => {
+  assert.equal(auditDigest, 'HXigGTGLKu_OM_j-FMFeYJJLfHwXhv0Gh_lVhvwkAO4'); assert.ok(auditDigest.includes('eYJ'));
+  const events = [auditDecision()]; assertReferenceAudit(events);
+  assert.throws(() => assert.doesNotMatch(JSON.stringify(events), /eyJ|privateKey|authorization|SYNTHETIC ACCOUNT|price|access_token|refresh_token|@/i), { code: 'ERR_ASSERTION' });
+});
+it('R1-45-A02: every permitted persisted reference event shape and both permissions are accepted', () => {
+  const records = [...auditRecordNames].map(event => ({ event, sequence: 2, gateRevision: 3, root: auditDigest }));
+  for (const event of ['allow', 'deny']) for (const permission of ['read', 'connect'])
+    records.push({ ...auditDecision(), event, ...pairB, permission });
+  records.push({ event: 'deny-fenced', ...pairA, sequence: 2 }); assertReferenceAudit(records);
+});
+it('R1-45-A03: complete deterministic signed JWTs are rejected in every event value', () => {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: 'synthetic-operator-a', exp: 1800000000 })).toString('base64url');
+  const signed = header + '.' + payload;
+  const jwt = signed + '.' + createHmac('sha256', 'SYNTHETIC-R145-TEST-KEY-NOT-A-CREDENTIAL').update(signed).digest('base64url');
+  for (const key of Object.keys(auditDecision())) auditRefused([{ ...auditDecision(), [key]: jwt }]);
+  auditRefused([{ ...auditDecision(), root: 'Bearer ' + jwt }]);
+});
+it('R1-45-A04: private keys, JWKs and opaque synthetic key material are rejected', () => {
+  for (const root of ['-----BEGIN PRIVATE KEY-----\nSYNTHETIC-R145-KEY\n-----END PRIVATE KEY-----',
+    { kty: 'oct', k: 'SYNTHETIC-R145-KEY' }, new Uint8Array(32), auditOpaqueCanaries[1]])
+    auditRefused([{ ...auditDecision(), root }]);
+});
+it('R1-45-A05: authorization headers and bearer/basic credentials are rejected', () => {
+  for (const root of ['Authorization: Bearer synthetic-r145', 'Bearer synthetic-r145', 'Basic c3ludGhldGljOnIxNDU='])
+    auditRefused([{ ...auditDecision(), root }]);
+});
+it('R1-45-A06: access and refresh tokens cannot hide in fields or a digest-shaped value', () => {
+  assert.equal(Buffer.from(auditOpaqueCanaries[0], 'base64url').toString('base64url'), auditOpaqueCanaries[0]);
+  for (const root of ['synthetic-access-token-r145', 'synthetic-refresh-token-r145', auditOpaqueCanaries[0]])
+    auditRefused([{ ...auditDecision(), root }]);
+  for (const key of ['access_token', 'refresh_token']) auditRefused([{ ...auditDecision(), [key]: 'synthetic-r145' }]);
+});
+it('R1-45-A07: synthetic email and commercial data are rejected', () => {
+  for (const root of ['synthetic-r145@example.invalid', 'SYNTHETIC ACCOUNT A', 'SYNTHETIC COMMERCIAL LISTING R145',
+    { price: 99, seller_id: 'synthetic-seller', title: 'SYNTHETIC LISTING' }, auditOpaqueCanaries[2]])
+    auditRefused([{ ...auditDecision(), root }]);
+});
+it('R1-45-A08: extra fields, including non-enumerable and symbol fields, are rejected', () => {
+  for (const key of ['privateKey', 'authorization', 'price', 'email', 'extra', '__proto__', Symbol('extra')]) {
+    const event = auditDecision(); Object.defineProperty(event, key, { value: 'synthetic-r145', enumerable: true }); auditRefused([event]);
+  }
+  const event = auditDecision(); Object.defineProperty(event, 'hidden', { value: 'synthetic-r145' }); auditRefused([event]);
+});
+it('R1-45-A09: missing fields, invalid types and accessors are rejected without invoking getters', () => {
+  for (const key of Object.keys(auditDecision())) {
+    const missing = auditDecision(); delete missing[key]; auditRefused([missing]);
+    for (const value of [null, true, {}, [], new String('synthetic-r145')]) auditRefused([{ ...auditDecision(), [key]: value }]);
+  }
+  let calls = 0; const event = auditDecision(); Object.defineProperty(event, 'root', { get() { calls++; return auditDigest; }, enumerable: true });
+  auditRefused([event]); assert.equal(calls, 0);
+});
+it('R1-45-A10: unexpected containers, prototypes, nested events and sparse arrays are rejected', () => {
+  for (const value of [null, {}, '[]', [], [null], [[]], [new Date(0)], [Object.create(null)], [[auditDecision()]], new Array(1)]) auditRefused(value);
+  const extra = [auditDecision()]; extra.extra = 'synthetic-r145'; auditRefused(extra);
+  const cycle = auditDecision(); cycle.self = cycle; auditRefused([cycle]);
+});
+it('R1-45-A11: unknown events, identities, permissions, counters and noncanonical digests are rejected', () => {
+  for (const change of [{ event: 'unexpected' }, { account: 'synthetic-seller' }, { subject: auditDigest }, { permission: 'admin' },
+    ...[-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER, '2'].map(sequence => ({ sequence })),
+    { root: auditDigest + '=' }, { root: auditDigest.slice(0, -1) + '5' }]) auditRefused([{ ...auditDecision(), ...change }]);
+  for (const gateRevision of [0, -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER, '1'])
+    auditRefused([{ event: 'hold', sequence: 2, gateRevision, root: auditDigest }]);
 });
 check(46, 'ECONNRESET/timeout/refused never satisfy MCP negative helper', async () => {
   for (const code of ['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED']) {
@@ -631,6 +741,7 @@ for (const [index, scenario, race] of [[0, 'R1-22', updateRace], [1, 'R1-65', re
   }
 }
 after(async () => {
+  await writeFile('work/recovery-audit-evidence.json', JSON.stringify({ syntheticOnly: true, persisted: auditEvidence }, null, 2) + '\n');
   await writeFile('work/recovery-concurrency-evidence.json', JSON.stringify(raceEvidence, null, 2) + '\n');
   coverage.sort((a,b) => a.id.localeCompare(b.id));
   await writeFile('work/recovery-coverage.json', JSON.stringify({ syntheticOnly: true, providerHomologated: false, scenarios: coverage }, null, 2) + '\n');

@@ -5,10 +5,14 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSyn
 import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectSnapshot, validateSnapshot, I1_BASE, I1_ADDED, I1_MODIFIED, I1Q_PATHS, I1_CI_PATHS, I2_BASE, I2_ADDED, I2_MODIFIED } from '../../scripts/verify-b4-preservation.mjs';
+import { collectSnapshot, validateI2Snapshot as validateSnapshot, validateSnapshot as validateCurrentSnapshot,
+  I1_BASE, I1_ADDED, I1_MODIFIED, I1Q_PATHS, I1_CI_PATHS, I2_BASE, I2_ADDED, I2_MODIFIED, R145_BASE, R145_MODIFIED } from '../../scripts/verify-b4-preservation.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
-const original = collectSnapshot(root), copy = () => ({ ...original, current: new Map(original.current), i1Base: new Map(original.i1Base) });
+const currentRevision = collectSnapshot(root);
+// Existing I1/I2 cases continue to check the immutable I2 bytes with their original validator.
+const original = { ...currentRevision, current: new Map(currentRevision.r145Base) };
+const copy = () => ({ ...original, current: new Map(original.current), i1Base: new Map(original.i1Base) });
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const added = ['prototype/mcp-local/integration/profile.ts','prototype/mcp-local/integration/identity-core.ts',
   'prototype/mcp-local/homologation/service-client.ts','prototype/mcp-local/lab/tests/boundaries.node.mjs','tests/b4/m21-preservation.node.mjs','prototype/mcp-local/recovery/core.ts'];
@@ -69,7 +73,7 @@ test('I1 base matches the original Git tree independently of the verifier counte
   const changed = [];
   for (const path of paths) {
     const expected = execFileSync('git',['--no-replace-objects','show',I1_BASE+':'+path], { cwd: root });
-    const current = readFileSync(resolve(root,path));
+    const current = original.current.get(path);
     if (!current.equals(expected)) changed.push(path);
   }
   assert.deepEqual(changed.sort(), [...new Set([...modified, ...I2_MODIFIED.filter(p => paths.includes(p))])].sort());
@@ -168,4 +172,83 @@ test('I2 content, ancestry, inventory and its own digest reject unapproved chang
   v.current.set(path,Buffer.from(v.current.get(path).toString().replace(/^const I2_VERIFIER_HASH = '[a-f0-9]{64}';$/m,
     "const I2_VERIFIER_HASH = '"+'f'.repeat(64)+"';")));
   refused(v,/^I1_CONTENT_CHANGED:scripts\/verify-b4-preservation\.mjs$/);
+});
+
+const revision = () => ({ ...currentRevision, current: new Map(currentRevision.current), r145Base: new Map(currentRevision.r145Base) });
+const revisionRefused = (snapshot, pattern) => assert.throws(() => validateCurrentSnapshot(snapshot), error =>
+  error?.constructor.name === 'PreservationFailure' && pattern.test(error.message));
+test('R145 revision has a fixed 184-file checkpoint and exactly four content-authorized transformations', () => {
+  assert.equal(R145_BASE, '9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044');
+  assert.deepEqual(R145_MODIFIED, ['prototype/mcp-local/tests/recovery.test.mjs', 'scripts/verify-b4-preservation.mjs',
+    'tests/b4/m21-preservation.node.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
+  assert.ok(Object.isFrozen(R145_MODIFIED));
+  const r = validateCurrentSnapshot(revision());
+  assert.equal(r.r145Base, R145_BASE); assert.equal(r.candidateFiles, 184); assert.equal(r.r145PublishedFiles, 184);
+  assert.equal(r.r145ProtectedFiles, 180); assert.equal(r.r145Added, 0); assert.equal(r.byteIdentical, 94);
+  assert.equal(r.activationBlocked, true); assert.equal(r.originalVerifierPreserved, true);
+});
+test('R145 exact hashes reject an extra byte and a missing file in every authorized path', () => {
+  for (const path of R145_MODIFIED) {
+    const s = revision(); s.current.set(path, Buffer.concat([s.current.get(path), Buffer.from('\n')]));
+    revisionRefused(s, new RegExp('^R145_CONTENT_CHANGED:' + path.replaceAll('.', '\\.') + '$'));
+    const missing = revision(); missing.current.delete(path); revisionRefused(missing, /^CANDIDATE_INVENTORY$/);
+  }
+});
+test('R145 all 180 paths outside the manifest remain byte identical and reject mutation', () => {
+  let count = 0;
+  for (const [path, bytes] of currentRevision.r145Base) if (!R145_MODIFIED.includes(path)) {
+    assert.deepEqual(currentRevision.current.get(path), bytes);
+    const s = revision(); s.current.set(path, Buffer.concat([bytes, Buffer.from('\n')]));
+    revisionRefused(s, /^(?:HISTORICAL_CHANGED:|B4_BASE_CHANGED:|APPROVED_DEPENDENCY_CHANGED:|SQLITE_CHANGE_NOT_ALLOWED$|CI_CHANGE_NOT_ALLOWED$|MCP_WORKFLOW_CHANGE_NOT_ALLOWED$|M1_PUBLISHED_CHANGED:|M20_PUBLISHED_CHANGED:|I1_PUBLISHED_CHANGED:|I1_CONTENT_CHANGED:|I2_CONTENT_CHANGED:|R145_PUBLISHED_CHANGED:)/);
+    count++;
+  }
+  assert.equal(count, 180);
+});
+test('R145 retains I1/I2 content pins, self-hash declarations and the complete I2 validator body', () => {
+  const path = 'scripts/verify-b4-preservation.mjs', baseline = currentRevision.r145Base.get(path).toString();
+  const current = currentRevision.current.get(path).toString();
+  for (const pattern of [/^const I1_VERIFIER_HASH = '[a-f0-9]{64}';$/m, /^const I2_VERIFIER_HASH = '[a-f0-9]{64}';$/m,
+    /const I1_CONTENT = Object.freeze\(\{[\s\S]*?\}\);/, /const I2_CONTENT = Object.freeze\(\{[\s\S]*?\}\);/])
+    assert.equal(current.match(pattern)?.[0], baseline.match(pattern)?.[0]);
+  const legacy = baseline.slice(baseline.indexOf('export function validateSnapshot(s) {'),
+    baseline.indexOf('if (process.argv[1] && resolve(process.argv[1])'))
+    .replace('export function validateSnapshot(s) {', 'export function validateI2Snapshot(s) {');
+  assert.ok(current.includes(legacy), 'The I2 validator logic must remain unchanged');
+  assert.equal(validateSnapshot(copy()).candidateFiles, 184);
+});
+test('R145 independent Git oracle proves the checkpoint and exactly four changed paths', () => {
+  const paths = execFileSync('git', ['--no-replace-objects', 'ls-tree', '-r', '--name-only', '-z', R145_BASE], { cwd: root })
+    .toString().split('\0').filter(Boolean); assert.equal(paths.length, 184);
+  const changed = [];
+  for (const path of paths) {
+    const bytes = execFileSync('git', ['--no-replace-objects', 'show', R145_BASE + ':' + path], { cwd: root });
+    assert.deepEqual(bytes, currentRevision.r145Base.get(path));
+    if (!bytes.equals(readFileSync(resolve(root, path)))) changed.push(path);
+  }
+  assert.deepEqual(changed.sort(), [...R145_MODIFIED].sort());
+});
+test('R145 ancestry and baseline inventory cannot be replaced by metadata or a caller hint', () => {
+  revisionRefused({ ...revision(), r145Ancestor: false, branch: 'main', B4_PRESERVATION: true }, /^R145_BASE_DIVERGED$/);
+  const s = revision(); s.r145Base.delete('src/b3/adapter.ts'); revisionRefused(s, /^R145_BASE_INVENTORY$/);
+});
+test('R145 mixed epochs reject old bytes under the new verifier and new bytes under I2 rules', () => {
+  for (const path of R145_MODIFIED) {
+    const s = revision(); s.current.set(path, currentRevision.r145Base.get(path));
+    revisionRefused(s, /^R145_CONTENT_CHANGED:/);
+  }
+  refused(revision(), /^B4_BASE_CHANGED:prototype\/mcp-local\/tests\/recovery\.test\.mjs$/);
+  const old = { ...revision(), current: new Map(currentRevision.r145Base) };
+  revisionRefused(old, /^R145_CONTENT_CHANGED:/);
+});
+test('R145 normalized self-hash cannot authorize replacing its own declared digest', () => {
+  const s = revision(), path = 'scripts/verify-b4-preservation.mjs';
+  s.current.set(path, Buffer.from(s.current.get(path).toString().replace(/^const R145_VERIFIER_HASH = '[a-f0-9]{64}';$/m,
+    "const R145_VERIFIER_HASH = '" + 'f'.repeat(64) + "';")));
+  revisionRefused(s, /^R145_CONTENT_CHANGED:scripts\/verify-b4-preservation\.mjs$/);
+});
+test('R145 no extra publication path, deletion or replacement of the immutable checkpoint is enrolled', () => {
+  const extra = revision(); extra.current.set('private-evidence.zip', Buffer.from('UNAPPROVED')); revisionRefused(extra, /^CANDIDATE_INVENTORY$/);
+  const missing = revision(); missing.current.delete('src/b3/adapter.ts'); revisionRefused(missing, /^CANDIDATE_INVENTORY$/);
+  const checkpoint = revision(); checkpoint.r145Base.set('prototype/mcp-local/tests/recovery.test.mjs', Buffer.from('UNAPPROVED'));
+  revisionRefused(checkpoint, /^B4_BASE_CHANGED:prototype\/mcp-local\/tests\/recovery\.test\.mjs$/);
 });
