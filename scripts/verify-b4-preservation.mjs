@@ -94,6 +94,21 @@ const I2_CONTENT = Object.freeze({
   'prototype/mcp-local/tests/homologation.test.mjs': 'f7c79ca493c93c246d1762110565e7308af677be81ccbed03be07ae01d2e5ac6',
   'tests/b4/m21-preservation.node.mjs': 'b6cb5883f23373723c496a2edb7320cf9ab894683e8470582dde379934121d9d',
 });
+// A separate revision authorizes only test/assertion bytes after the published I2 merge.
+// Historical I1/I2 declarations and validators retain their own immutable checkpoints.
+export const R145_BASE = '9744bcaee5f999c7dfa907e6c3f9f3f0d31ce044';
+export const R145_MODIFIED = Object.freeze([
+  'prototype/mcp-local/tests/recovery.test.mjs',
+  'scripts/verify-b4-preservation.mjs',
+  'tests/b4/m21-preservation.node.mjs',
+  'prototype/mcp-local/tests/homologation.test.mjs'
+]);
+const R145_VERIFIER_HASH = 'e7b289b55ca4f6c663cdfd12a415fee8af0a91d47f9c00b9010f225ea3aae470';
+const R145_CONTENT = Object.freeze({
+  'prototype/mcp-local/tests/recovery.test.mjs': 'e29db81536320fb4ab6bd98185e0e1ca3409b4833aefe9e9d45c97371db9528b',
+  'tests/b4/m21-preservation.node.mjs': '84788896776ccae165eede363c20bf1e32982ab556fc0724f46c7b7dd27facda',
+  'prototype/mcp-local/tests/homologation.test.mjs': '4c37af6f26eba3af844ac3c60297e93640eadc1b134e2f21d10fb346896c7fbb'
+});
 export const M20_MODIFIED = Object.freeze(['.github/workflows/b3-sqlite.yml',
   'scripts/verify-b4-preservation.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
 export const M1_ADDED = Object.freeze([
@@ -291,7 +306,10 @@ export function collectSnapshot(root = process.cwd()) {
   let i2Ancestor = false;
   try { git(['merge-base','--is-ancestor',I2_BASE,'HEAD']); i2Ancestor = true; } catch { /* No historical downgrade. */ }
   const i2Base = readGitSnapshots(git, [I2_BASE]).get(I2_BASE);
-  return { ancestor, historical, base, current, m1Ancestor, m1Base, m20Ancestor, m20Base, i1Ancestor, i1Base, i2Ancestor, i2Base };
+  let r145Ancestor = false;
+  try { git(['merge-base','--is-ancestor',R145_BASE,'HEAD']); r145Ancestor = true; } catch { /* No revision downgrade. */ }
+  const r145Base = readGitSnapshots(git, [R145_BASE]).get(R145_BASE);
+  return { ancestor, historical, base, current, m1Ancestor, m1Base, m20Ancestor, m20Base, i1Ancestor, i1Base, i2Ancestor, i2Base, r145Ancestor, r145Base };
 }
 function validateI1Snapshot(s) {
   must(s.ancestor,'BASE_DIVERGED'); must(s.historical.size === 97 && s.base.size === 144,'HISTORICAL_INVENTORY');
@@ -366,7 +384,7 @@ function validateI1Snapshot(s) {
     m20Base:M20_BASE,m20PublishedFiles:172,m20ProtectedFiles:m20Identical,m20AuthorizedModifications:M20_MODIFIED,
     i1Base:I1_BASE,i1PublishedFiles:172,i1ProtectedFiles:i1Identical,i1Added:I1_ADDED.length,i1AuthorizedModifications:I1_MODIFIED,i1qAuthorizedPaths:I1Q_PATHS,i1ciAuthorizedPaths:I1_CI_PATHS };
 }
-export function validateSnapshot(s) {
+export function validateI2Snapshot(s) {
   must(s.i2Base instanceof Map && s.i2Base.size === 178, 'I2_BASE_INVENTORY');
   const expected = new Set([...s.i2Base.keys(), ...I2_ADDED]);
   must(s.current.size === 184 && expected.size === 184 && [...expected].every(p => s.current.has(p))
@@ -393,6 +411,35 @@ export function validateSnapshot(s) {
     historicalCountersDescribe: 'validated I1 checkpoint and I2 projection; actual unchanged I2 files counted separately',
     i2Base: I2_BASE, i2PublishedFiles: 178, i2ProtectedFiles: 174, i2Added: I2_ADDED.length,
     i2AuthorizedModifications: I2_MODIFIED };
+}
+export function validateSnapshot(s) {
+  must(s.r145Ancestor, 'R145_BASE_DIVERGED');
+  must(s.r145Base instanceof Map && s.r145Base.size === 184, 'R145_BASE_INVENTORY');
+  must(s.current.size === 184 && [...s.r145Base.keys()].every(p => s.current.has(p))
+    && [...s.current.keys()].every(p => s.r145Base.has(p)), 'CANDIDATE_INVENTORY');
+  const checkpoint = validateI2Snapshot({ ...s, current: s.r145Base });
+  const projected = new Map(s.current);
+  for (const p of R145_MODIFIED) projected.set(p, s.r145Base.get(p));
+  validateI2Snapshot({ ...s, current: projected });
+  let unchanged = 0;
+  for (const [p, bytes] of s.r145Base) if (!R145_MODIFIED.includes(p)) {
+    must(sameBytes(s.current.get(p), bytes), 'R145_PUBLISHED_CHANGED:' + p); unchanged++;
+  }
+  must(unchanged === 180, 'R145_PUBLISHED_COUNT');
+  must(R145_MODIFIED.length === 4 && new Set(R145_MODIFIED).size === 4
+    && Object.keys(R145_CONTENT).length === 3 && R145_MODIFIED
+      .filter(p => p !== 'scripts/verify-b4-preservation.mjs').every(p => Object.hasOwn(R145_CONTENT, p)), 'R145_CONTENT_INVENTORY');
+  for (const [p, expected] of Object.entries(R145_CONTENT))
+    must(hash(s.current.get(p)) === expected, 'R145_CONTENT_CHANGED:' + p);
+  const bytes = s.current.get('scripts/verify-b4-preservation.mjs'), text = Buffer.from(bytes).toString('utf8');
+  const marker = /^const R145_VERIFIER_HASH = '[a-f0-9]{64}';$/m;
+  const normalized = text.replace(marker, "const R145_VERIFIER_HASH = '" + '0'.repeat(64) + "';");
+  must(sameBytes(Buffer.from(text), bytes) && marker.exec(text)?.[0] === "const R145_VERIFIER_HASH = '" + R145_VERIFIER_HASH + "';"
+    && hash(normalized) === R145_VERIFIER_HASH, 'R145_CONTENT_CHANGED:scripts/verify-b4-preservation.mjs');
+  return { ...checkpoint, candidateFiles: s.current.size,
+    historicalCountersDescribe: 'validated I2 checkpoint and R145 projection; actual unchanged revision files counted separately',
+    r145Base: R145_BASE, r145PublishedFiles: 184, r145ProtectedFiles: unchanged,
+    r145AuthorizedModifications: R145_MODIFIED, r145Added: 0 };
 }
 if (process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   try { if(process.argv.length!==2)throw new Error('UNSUPPORTED_ARGUMENTS'); console.log(JSON.stringify(validateSnapshot(collectSnapshot()),null,2)); }

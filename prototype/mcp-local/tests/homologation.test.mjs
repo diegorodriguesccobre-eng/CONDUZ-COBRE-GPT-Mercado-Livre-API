@@ -5,7 +5,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, renameSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { collectSnapshot, readGitSnapshots, validateSnapshot, expectedSQLiteWorkflow, expectedCIDispatcher, M1_ADDED, M1_MODIFIED, M1_BASE, B31, B4, M20_BASE, M20_MODIFIED, I1_BASE, I1_CI_PATHS, I2_BASE, I2_ADDED, I2_MODIFIED } from '../../../scripts/verify-b4-preservation.mjs';
+import { collectSnapshot, readGitSnapshots, validateI2Snapshot as validateSnapshot, validateSnapshot as validateCurrentSnapshot,
+  expectedSQLiteWorkflow, expectedCIDispatcher, M1_ADDED, M1_MODIFIED, M1_BASE, B31, B4, M20_BASE, M20_MODIFIED,
+  I1_BASE, I1_CI_PATHS, I2_BASE, I2_ADDED, I2_MODIFIED, R145_BASE, R145_MODIFIED } from '../../../scripts/verify-b4-preservation.mjs';
 import { verifyInventory, suites } from '../scripts/ci.mjs';
 
 const project = fileURLToPath(new URL('..', import.meta.url));
@@ -23,7 +25,8 @@ const paths = [
 const collected = collectSnapshot(root);
 // Memory-only candidates let the verifier be checked before M1 implementation starts.
 const complete = () => {
-  const current = new Map(collected.current);
+  // Historical memory controls keep the I2 checkpoint and its unchanged validator.
+  const current = new Map(collected.r145Base);
   for (const p of paths) if (!current.has(p)) current.set(p, Buffer.from('MEMORY_ONLY_NEW_M1_PATH'));
   return { ...collected, current, m1Base: new Map(collected.m1Base), m20Base: new Map(collected.m20Base) };
 };
@@ -392,6 +395,7 @@ test('M1-02: actual SQLite shell preserves B3 selection on the unchanged histori
 // Actual Git object graphs, confined to disposable fixtures. No project commit or branch is created.
 const m20RoutingEvidence = [];
 const i2CommittedFixtureEvidence = [];
+const r145CommittedFixtureEvidence = [];
 const mainBeforeB4 = 'ed36da553b4dbd0c3c5d574e7db0b0d61fb1cd6d';
 const b3Checkpoint = 'a53f7f3af8c0edb0da856916b60706b342d0118a';
 test('M2.0: exact SQLite transformation preserves shell dollar and quote bytes', () => {
@@ -450,7 +454,7 @@ function i1GitFixture(run, { workingTree = false, ref = I2_BASE } = {}) {
       const parent = git('rev-parse', 'HEAD'), changedPaths = [];
       assert.equal(parent, I2_BASE);
       for (const path of candidatePaths) {
-        const bytes = readFileSync(resolve(root, path));
+        const bytes = collected.r145Base.get(path); // Immutable I2 epoch, never mixed with current R145 bytes.
         const previous = collected.i2Base.get(path);
         if (previous === undefined || !bytes.equals(previous)) changedPaths.push(path);
         fixtureWrite(repo, path, bytes);
@@ -464,9 +468,9 @@ function i1GitFixture(run, { workingTree = false, ref = I2_BASE } = {}) {
       assert.equal(git('rev-parse', 'HEAD^{tree}'), tree);
       assert.equal(git('merge-base', '--is-ancestor', I1_BASE, 'HEAD'), '');
       assert.equal(git('status', '--porcelain'), '');
-      for (const path of candidatePaths) assert.deepEqual(readFileSync(resolve(repo, path)), readFileSync(resolve(root, path)));
+      for (const path of candidatePaths) assert.deepEqual(readFileSync(resolve(repo, path)), collected.r145Base.get(path));
       fixture.candidateSnapshot = { parent, commit, tree, startingFiles: startingPaths.length,
-        copiedPaths: [...candidatePaths], changedPaths, stagedPaths, temporaryRepositoryOnly: true };
+        copiedPaths: [...candidatePaths], changedPaths, stagedPaths, historicalSource: R145_BASE, temporaryRepositoryOnly: true };
     }
     return run(fixture);
   }, { ref, install: false });
@@ -479,6 +483,33 @@ function selection(repo, extraEnv = {}) {
   } catch (error) {
     return { exit: error.status, signal: error.signal, stdout: String(error.stdout ?? ''), stderr: String(error.stderr ?? '') };
   }
+}
+function r145GitFixture(run) {
+  return gitFixture(f => {
+    const { git, repo } = f, parent = git('rev-parse', 'HEAD');
+    assert.equal(parent, R145_BASE);
+    const startingPaths = git('ls-files', '-z').split('\0').filter(Boolean).sort();
+    assert.deepEqual(startingPaths, [...collected.r145Base.keys()].sort()); assert.equal(startingPaths.length, 184);
+    assert.deepEqual(R145_MODIFIED, ['prototype/mcp-local/tests/recovery.test.mjs', 'scripts/verify-b4-preservation.mjs',
+      'tests/b4/m21-preservation.node.mjs', 'prototype/mcp-local/tests/homologation.test.mjs']);
+    const changedPaths = [];
+    for (const path of R145_MODIFIED) {
+      const bytes = readFileSync(resolve(root, path));
+      if (!bytes.equals(collected.r145Base.get(path))) changedPaths.push(path);
+      fixtureWrite(repo, path, bytes);
+    }
+    git('add', '--', ...R145_MODIFIED);
+    const stagedPaths = git('diff', '--cached', '--name-only').split('\n').filter(Boolean).sort();
+    assert.deepEqual(stagedPaths, changedPaths.sort()); assert.deepEqual(stagedPaths, [...R145_MODIFIED].sort());
+    const tree = git('write-tree'), commit = git('commit-tree', tree, '-p', parent, '-m', 'SYNTHETIC R145 REVISION ONLY');
+    git('checkout', '--quiet', '--detach', commit);
+    assert.equal(git('rev-parse', 'HEAD^'), parent); assert.equal(git('rev-parse', 'HEAD^{tree}'), tree);
+    assert.equal(git('merge-base', '--is-ancestor', R145_BASE, 'HEAD'), ''); assert.equal(git('status', '--porcelain'), '');
+    for (const path of R145_MODIFIED) assert.deepEqual(readFileSync(resolve(repo, path)), readFileSync(resolve(root, path)));
+    f.candidateSnapshot = { parent, commit, tree, startingFiles: startingPaths.length,
+      copiedPaths: [...R145_MODIFIED], changedPaths, stagedPaths, temporaryRepositoryOnly: true };
+    return run(f);
+  }, { ref: R145_BASE, install: false });
 }
 function workflowFailure(result, code) {
   assert.equal(result.exit, 1); assert.equal(result.signal, null);
@@ -497,19 +528,24 @@ function checkedB4Report(report, epoch) {
     assert.equal(report.originalVerifierPreserved, true);
     if (epoch === 'i1-ci') assert.deepEqual(report.i1ciAuthorizedPaths, I1_CI_PATHS);
   } else if (epoch === 'i2') {
+    assert.equal(Object.hasOwn(report, 'r145Base'), false, 'R145 must not masquerade as the historical I2 epoch');
     assert.equal(report.candidateFiles, 184); assert.equal(report.i2Base, I2_BASE);
     assert.equal(report.i2PublishedFiles, 178); assert.equal(report.i2ProtectedFiles, 174);
     assert.equal(report.i2Added, 6); assert.equal(report.originalVerifierPreserved, true);
+  } else if (epoch === 'r145') {
+    assert.equal(report.candidateFiles, 184); assert.equal(report.r145Base, R145_BASE);
+    assert.equal(report.r145PublishedFiles, 184); assert.equal(report.r145ProtectedFiles, 180); assert.equal(report.r145Added, 0);
+    assert.deepEqual(report.r145AuthorizedModifications, R145_MODIFIED); assert.equal(report.originalVerifierPreserved, true);
   } else assert.fail('Unknown preservation epoch');
 }
 function checkedSelection(fixture, name, expected, extraEnv) {
   const r = selection(fixture.repo, extraEnv);
-  if (expected === 'B4' || expected === 'B4-I1' || expected === 'B4-I1-CI' || expected === 'B4-I2' || expected === 'B3') {
+  if (expected === 'B4' || expected === 'B4-I1' || expected === 'B4-I1-CI' || expected === 'B4-I2' || expected === 'B4-R145' || expected === 'B3') {
     assert.equal(r.exit, 0, r.stderr); assert.equal(r.signal, null); const report = JSON.parse(r.stdout);
     if (expected !== 'B3') {
-      const epoch = expected === 'B4' ? 'historical' : expected === 'B4-I1' ? 'i1' : expected === 'B4-I2' ? 'i2' : 'i1-ci';
+      const epoch = expected === 'B4' ? 'historical' : expected === 'B4-I1' ? 'i1' : expected === 'B4-I2' ? 'i2' : expected === 'B4-R145' ? 'r145' : 'i1-ci';
       checkedB4Report(report, epoch);
-      for (const wrong of ['historical','i1','i1-ci','i2'].filter(other => other !== epoch))
+      for (const wrong of ['historical','i1','i1-ci','i2','r145'].filter(other => other !== epoch))
         assert.throws(() => checkedB4Report(report, wrong), { code: 'ERR_ASSERTION' });
     } else {
       assert.equal(report.base, 'f59081e223006f3eb0739d01073ed2eba824687e');
@@ -637,6 +673,77 @@ test(committedFixtureTest, { timeout: 45000 }, () => i1GitFixture(f => {
     milliseconds: Math.round(performance.now() - started), recursionExcluded: true };
   i2CommittedFixtureEvidence.push(row); console.log('I2_ID_FIX_SUITE ' + JSON.stringify(row));
 }, { workingTree: true }));
+const r145WorkingTest = 'R145 fixture: working candidate selects its verifier from the fixed merged checkpoint';
+const r145MixedTest = 'R145 fixture: mixed epochs and missing revision ancestry never select a permissive verifier';
+const r145CommittedTest = 'R145 fixture: committed candidate preserves current and historical selection without recursion';
+test(r145WorkingTest, () => {
+  const current = validateCurrentSnapshot(collected);
+  assert.equal(current.r145Base, R145_BASE); assert.equal(current.r145ProtectedFiles, 180);
+  r145GitFixture(f => {
+    checkedSelection(f, 'R145 working candidate snapshot', 'B4-R145');
+    Object.assign(m20RoutingEvidence.at(-1), { candidateSnapshot: f.candidateSnapshot });
+  });
+});
+test(r145MixedTest, () => r145GitFixture(f => {
+  const verifier = 'scripts/verify-b4-preservation.mjs', recovery = 'prototype/mcp-local/tests/recovery.test.mjs';
+  const refusedEpoch = (name, code) => {
+    const r = selection(f.repo);
+    assert.equal(r.exit, 1); assert.equal(r.signal, null); assert.equal(r.stdout.trim(), '');
+    assert.deepEqual(JSON.parse(r.stderr), { preservation: 'FAILED', code });
+    m20RoutingEvidence.push({ name, expected: code, exit: r.exit, signal: r.signal, noFallback: true, syntheticGitFixture: true });
+  };
+  fixtureWrite(f.repo, verifier, collected.r145Base.get(verifier));
+  refusedEpoch('R145 old verifier mixed with new bytes', 'B4_BASE_CHANGED:' + recovery);
+  fixtureWrite(f.repo, verifier, readFileSync(resolve(root, verifier)));
+  fixtureWrite(f.repo, recovery, collected.r145Base.get(recovery));
+  refusedEpoch('R145 new verifier mixed with old recovery bytes', 'R145_CONTENT_CHANGED:' + recovery);
+  fixtureWrite(f.repo, recovery, readFileSync(resolve(root, recovery)));
+  assert.equal(f.git('status', '--porcelain'), '');
+  const wrong = f.git('commit-tree', f.candidateSnapshot.tree, '-p', I2_BASE, '-m', 'SYNTHETIC R145 WRONG LINEAGE ONLY');
+  f.git('checkout', '--quiet', '--detach', wrong);
+  refusedEpoch('R145 missing revision ancestry', 'R145_BASE_DIVERGED');
+}));
+test(r145CommittedTest, { timeout: 45000 }, () => r145GitFixture(f => {
+  const sourceHead = f.git('rev-parse', 'HEAD'), sourceTree = f.git('rev-parse', 'HEAD^{tree}');
+  assert.equal(f.git('rev-parse', 'HEAD^'), R145_BASE);
+  assert.equal(f.git('ls-files', '-z').split('\0').filter(Boolean).length, 184);
+  for (const relative of ['node_modules', 'prototype/mcp-local/node_modules']) {
+    const installed = resolve(root, relative), destination = resolve(f.repo, relative);
+    mkdirSync(destination, { recursive: true });
+    for (const entry of readdirSync(installed)) symlinkSync(resolve(installed, entry), resolve(destination, entry));
+  }
+  const pattern = '^(?:M2.0-FIX: full published descendant retains the checkpoint and selects B4|I2 fixture: uncommitted candidate snapshot selects its matching verifier in a temporary descendant|I1 fixture: 178 files mixed with the historical 172-file verifier remain refused|'
+    + r145WorkingTest + '|' + r145MixedTest + ')$';
+  assert.equal(new RegExp(pattern).test(r145CommittedTest), false, 'Revision regression must not recurse');
+  const childEnv = { ...process.env }; delete childEnv.NODE_TEST_CONTEXT;
+  const started = performance.now();
+  const stdout = execFileSync(process.execPath, ['--test', '--test-reporter=tap', '--test-name-pattern=' + pattern,
+    'tests/homologation.test.mjs'], { cwd: resolve(f.repo, 'prototype/mcp-local'), env: childEnv,
+    stdio: ['ignore', 'pipe', 'pipe'], timeout: 40000, maxBuffer: 16 * 1024 * 1024 }).toString();
+  const directory = resolve(project, 'work/r145'); mkdirSync(directory, { recursive: true });
+  writeFileSync(resolve(directory, 'committed-fixture.tap'), stdout);
+  const count = name => {
+    const matches = [...stdout.matchAll(new RegExp('^# ' + name + ' (\\d+)$', 'gm'))];
+    assert.equal(matches.length, 1); return Number(matches[0][1]);
+  };
+  assert.equal(count('tests'), 5); assert.equal(count('pass'), 5);
+  for (const name of ['fail', 'cancelled', 'skipped', 'todo']) assert.equal(count(name), 0);
+  const childEvidence = JSON.parse(readFileSync(resolve(f.repo, 'prototype/mcp-local/work/homologation/test-evidence.json')));
+  const routing = childEvidence.preservationRouting; assert.equal(routing.length, 7);
+  assert.ok(routing.some(row => row.expected === 'B4-I1' && row.exit === 0));
+  assert.ok(routing.some(row => row.expected === 'B4-I2' && row.exit === 0));
+  const current = routing.find(row => row.name === 'R145 working candidate snapshot');
+  assert.equal(current.expected, 'B4-R145'); assert.equal(current.exit, 0);
+  assert.equal(current.candidateSnapshot.parent, R145_BASE); assert.equal(current.candidateSnapshot.startingFiles, 184);
+  assert.deepEqual(current.candidateSnapshot.stagedPaths, [...R145_MODIFIED].sort());
+  assert.equal(current.candidateSnapshot.tree, sourceTree);
+  assert.equal(routing.filter(row => row.name.startsWith('R145 ') && row.noFallback === true && row.exit === 1).length, 3);
+  assert.equal(f.git('rev-parse', 'HEAD'), sourceHead); assert.equal(f.git('status', '--porcelain'), '');
+  const row = { sourceHead, sourceParent: R145_BASE, sourceTree, sourceFiles: 184,
+    snapshot: current.candidateSnapshot, tests: count('tests'), pass: count('pass'), exit: 0,
+    milliseconds: Math.round(performance.now() - started), recursionExcluded: true };
+  r145CommittedFixtureEvidence.push(row); console.log('R145_CI_SUITE ' + JSON.stringify(row));
+}));
 test('M2.0: a genuinely shallow clone never falls back', () => gitFixture(f => {
   const sourceHead = execFileSync('git', ['--no-replace-objects', 'rev-parse', 'HEAD'], { cwd: root, stdio: 'pipe' }).toString().trim();
   assert.notEqual(sourceHead, M20_BASE);
@@ -1509,7 +1616,7 @@ test('M1 public build exports only the handler and excludes private fixtures and
 const i1qCIEvidence = [];
 const i1qSuites = Object.freeze([
   Object.freeze({ file: 'lab/tests/boundaries.node.mjs', expectedTests: 62 }),
-  Object.freeze({ file: '../../tests/b4/m21-preservation.node.mjs', expectedTests: 54 }),
+  Object.freeze({ file: '../../tests/b4/m21-preservation.node.mjs', expectedTests: 63 }),
   Object.freeze({ file: 'lab/tests/i2-identity.node.mjs', expectedTests: 11 })
 ]);
 for (const suite of i1qSuites) test('I1-Q CI runs all tests in ' + suite.file, { timeout: 45000 }, () => {
@@ -1530,5 +1637,5 @@ for (const suite of i1qSuites) test('I1-Q CI runs all tests in ' + suite.file, {
 after(() => writeFileSync(resolve(project, 'work/homologation/test-evidence.json'), JSON.stringify({
   syntheticOnly: true, productionReady: false, administrativeMfaProven: false, realQuorumProven: false,
   independentReferenceProven: false, completedScenarios: evidence, portEvidence, ciContexts: ciContextEvidence, cancellationEvidence,
-  preservationRouting: m20RoutingEvidence, i1qCIEvidence, gitBatchEvidence, i2CommittedFixtureEvidence
+  preservationRouting: m20RoutingEvidence, i1qCIEvidence, gitBatchEvidence, i2CommittedFixtureEvidence, r145CommittedFixtureEvidence
 }, null, 2) + '\n'));
